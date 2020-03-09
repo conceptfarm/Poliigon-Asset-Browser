@@ -5,12 +5,12 @@ sources:
 	
 	thumbnail framework:
 	https://stackoverflow.com/questions/26829754/how-to-use-the-threads-to-create-the-images-thumbnail
-'''
-'''
+
 TODO:
-	- convert to pyside to be usable in max
+	- convert to pyside to be usable in 3dsmax
+	- grayed out material thumbnails for not purchased materials
 	- double click thumb -> build material
-	- double click thumb -> if asset not downloaded take to the poliigon website
+	- double click thumb -> if asset not purchased -> take to the poliigon website
 	- dark theme would be nice
 	- large size thumbnail preview
 
