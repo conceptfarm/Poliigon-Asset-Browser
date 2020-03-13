@@ -20,7 +20,7 @@ import os
 import traceback, sys
 import platform
 
-from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QFileSystemModel,QTreeView,QListView,  QStyle,QLabel, QComboBox, QPushButton, QApplication, QStyleFactory, QGridLayout, QVBoxLayout, QLayout, QSizePolicy, QProgressBar, QPlainTextEdit, QButtonGroup, QRadioButton, QCheckBox, QFrame, QSpacerItem )
+from PyQt5.QtWidgets import (QWidget, QSplitter, QHBoxLayout, QFileSystemModel,QTreeView,QListView,  QStyle,QLabel, QComboBox, QPushButton, QApplication, QStyleFactory, QGridLayout, QVBoxLayout, QLayout, QSizePolicy, QProgressBar, QPlainTextEdit, QButtonGroup, QRadioButton, QCheckBox, QFrame, QSpacerItem )
 from PyQt5.QtCore import Qt, QCoreApplication, QRect, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool, QSize,QModelIndex,QMetaObject,QDir,QDirIterator
 from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage
 
@@ -82,7 +82,7 @@ class MainWindow(QWidget):
 		self.threadpool = QThreadPool()
 		#self.threadpool.setMaxThreadCount(1)
 		self.threadpool.maxThreadCount()
-		
+				
 		self.rootPath = 'C:/poliigon/'
 
 		self.model = QFileSystemModel()
@@ -93,29 +93,55 @@ class MainWindow(QWidget):
 		self.treeView = QTreeView()
 		self.treeView.setModel(self.model)
 		self.treeView.setObjectName('treeView')
+		#homeIndex = self.model.parent(self.model.index(self.rootPath))
+		#self.treeView.setRootIndex(homeIndex)
 		self.treeView.setRootIndex(self.model.index(self.rootPath))
 		self.treeView.resizeColumnToContents(0)
-
+		self.treeView.setRootIsDecorated(True)
+		self.treeView.setHeaderHidden(False)
+		
 		self.listView = QListView()
 		self.listView.setModel(self.filesmodel)
+		self.listView.setObjectName('listView')
 		self.listView.setViewMode(1)
 		self.listView.setResizeMode(1)
 		self.listView.setWrapping(True)
 		self.listView.setWordWrap(True)
 		self.listView.setGridSize(QSize(180,180))
 		self.listView.setUniformItemSizes(True)
-		self.listView.setIconSize(QSize(120,120))
+		self.listView.setIconSize(QSize(150,150))
 
-		windowLayout = QHBoxLayout()
-		windowLayout.addWidget(self.treeView)
-		windowLayout.addWidget(self.listView)
-		self.setLayout(windowLayout)
-
-		QMetaObject.connectSlotsByName(self) # auto connects defs on_Object_signal to object signal
+		self.splitterLayout = QSplitter(self)
+		self.splitterLayout.setOrientation(Qt.Horizontal)
+		self.splitterLayout.addWidget(self.treeView)
+		self.splitterLayout.addWidget(self.listView)
+		self.windowLayout = QHBoxLayout(self)
+		self.windowLayout.addWidget(self.splitterLayout)
+		#windowLayout.addWidget(self.treeView)
+		#windowLayout.addWidget(self.listView)
+		#self.setLayout(windowLayout)
+		
+		#self.listView.doubleClicked.connect(self.test)
+		QMetaObject.connectSlotsByName(self) # auto connects defs on_Object_signal to object signal !use setObjectName, won't work with var name
 
 		self.show()
-
-
+	
+	
+	@pyqtSlot(QModelIndex)
+	def on_listView_doubleClicked(self, index):
+	#def test(self, index):
+		thisItem = (self.filesmodel.itemFromIndex(self.listView.currentIndex()))
+		print(thisItem.toolTip())
+	
+	'''
+	@pyqtSlot(QModelIndex)
+	def on_listView_clicked(self, index):
+		print('on def')
+		#thisFile = (self.filesmodel.filePath(self.listView.currentIndex()))
+		#print(thisFile)
+		print(self.listView.currentIndex())
+	'''
+	
 	@pyqtSlot(QModelIndex)
 	def on_treeView_clicked(self,index):
 		self.filesmodel.clear()
@@ -135,7 +161,11 @@ class MainWindow(QWidget):
 
 		#fill all items with placeholder thumbnail which is a gray box
 		for i in range(len(fileList)):
-			self.filesmodel.setItem(i, QStandardItem(QIcon(placeholder), os.path.basename(fileList[i])))
+			newItem = QStandardItem(QIcon(placeholder), os.path.basename(fileList[i]))
+			newItem.setToolTip(fileList[i])
+			newItem.setEditable(False)
+			#self.filesmodel.setItem(i, QStandardItem(QIcon(placeholder), os.path.basename(fileList[i])))
+			self.filesmodel.setItem(i, newItem)
 
 		#start workers for each thumbnail to generate
 		for i in range(len(fileList)):
@@ -146,9 +176,9 @@ class MainWindow(QWidget):
 
 	def List(self, file, size, i, progress_callback):
 		originalImage = QImage(file)
-		if originalImage != None:
+		if originalImage.isNull() == False:
 			scaledImage = QImage(originalImage.scaled(size))
-			if scaledImage != None:
+			if scaledImage.isNull() == False:
 				progress_callback.emit((i, scaledImage))
 
 	
@@ -156,9 +186,21 @@ class MainWindow(QWidget):
 		index, img = tup
 		#index = tup[0]
 		#img = tup[1]
+		
+		#set alpha is no longer supported
+		#qImg= QPixmap.fromImage(img)
+		#alpha = QPixmap(qImg.size())
+		#alpha.fill(Qt.gray)
+		#qImg.setAlphaChannel(alpha)
+		#icon = QIcon(qImg)
+		
 		icon = QIcon(QPixmap.fromImage(img))
-		item = QStandardItem(self.filesmodel.item(index))
-		self.filesmodel.setItem(index, QStandardItem(icon, item.text()))
+				
+		item = (self.filesmodel.item(index))
+		newItem = QStandardItem(icon, item.text())
+		newItem.setToolTip(item.toolTip())
+		newItem.setEditable(False)
+		self.filesmodel.setItem(index, newItem)
 
 
 if __name__ == '__main__':
