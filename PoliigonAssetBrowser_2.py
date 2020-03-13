@@ -6,11 +6,16 @@ sources:
 	thumbnail framework:
 	https://stackoverflow.com/questions/26829754/how-to-use-the-threads-to-create-the-images-thumbnail
 
+	transparent icon:
+	https://forum.qt.io/topic/64597/qpixmap-and-opacity-and-transparency
+
 TODO:
 	- convert to pyside to be usable in 3dsmax
-	- grayed out material thumbnails for not purchased materials
+	- grayed out material thumbnails for not purchased materials - needs testing
 	- double click thumb -> build material
 	- double click thumb -> if asset not purchased -> take to the poliigon website
+	- scale thumbs to fit nicely
+	
 	- dark theme would be nice
 	- large size thumbnail preview
 
@@ -22,7 +27,7 @@ import platform
 
 from PyQt5.QtWidgets import (QWidget, QSplitter, QHBoxLayout, QFileSystemModel,QTreeView,QListView,  QStyle,QLabel, QComboBox, QPushButton, QApplication, QStyleFactory, QGridLayout, QVBoxLayout, QLayout, QSizePolicy, QProgressBar, QPlainTextEdit, QButtonGroup, QRadioButton, QCheckBox, QFrame, QSpacerItem )
 from PyQt5.QtCore import Qt, QCoreApplication, QRect, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool, QSize,QModelIndex,QMetaObject,QDir,QDirIterator
-from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage
+from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage, QPainter
 
 
 class WorkerSignals(QObject):
@@ -132,15 +137,8 @@ class MainWindow(QWidget):
 	#def test(self, index):
 		thisItem = (self.filesmodel.itemFromIndex(self.listView.currentIndex()))
 		print(thisItem.toolTip())
+		self.getFileNumber(thisItem.toolTip())
 	
-	'''
-	@pyqtSlot(QModelIndex)
-	def on_listView_clicked(self, index):
-		print('on def')
-		#thisFile = (self.filesmodel.filePath(self.listView.currentIndex()))
-		#print(thisFile)
-		print(self.listView.currentIndex())
-	'''
 	
 	@pyqtSlot(QModelIndex)
 	def on_treeView_clicked(self,index):
@@ -184,23 +182,35 @@ class MainWindow(QWidget):
 	
 	def setThumbs(self, tup):
 		index, img = tup
-		#index = tup[0]
-		#img = tup[1]
-		
-		#set alpha is no longer supported
-		#qImg= QPixmap.fromImage(img)
-		#alpha = QPixmap(qImg.size())
-		#alpha.fill(Qt.gray)
-		#qImg.setAlphaChannel(alpha)
-		#icon = QIcon(qImg)
-		
+
+		item = self.filesmodel.item(index)
 		icon = QIcon(QPixmap.fromImage(img))
-				
-		item = (self.filesmodel.item(index))
-		newItem = QStandardItem(icon, item.text())
-		newItem.setToolTip(item.toolTip())
-		newItem.setEditable(False)
-		self.filesmodel.setItem(index, newItem)
+
+		if self.getFileNumber(item.toolTip()) == 0:
+			transImg = self.transparentIcon(img)
+			icon = QIcon(QPixmap.fromImage(transImg))
+
+		item.setIcon(icon)
+
+
+	def getFileNumber(self, path):
+		def getExt(path):
+			filename, file_extension = os.path.splitext(path)
+			return(file_extension)
+		DIR =  os.path.dirname(os.path.abspath(path))
+		print (len([name for name in os.listdir(DIR) if os.path.isfile(name) and getExt(path)!='.txt']))
+		return (len([name for name in os.listdir(DIR) if os.path.isfile(name) and getExt(path)!='.txt']))
+
+
+	def transparentIcon (self, input):
+		input = QPixmap.fromImage(input)
+		image = QImage(input.size(),QImage.Format_ARGB32_Premultiplied)
+		image.fill(Qt.transparent)
+		p = QPainter(image)
+		p.setOpacity(0.5)
+		p.drawPixmap(0,0,input)
+		p.end()
+		return image
 
 
 if __name__ == '__main__':
