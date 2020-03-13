@@ -15,7 +15,10 @@ TODO:
 	- double click thumb -> build material
 	- double click thumb -> if asset not purchased -> take to the poliigon website
 	- scale thumbs to fit nicely
-	
+	- file count merge from previous
+	- search bar
+	- root folder display
+
 	- dark theme would be nice
 	- large size thumbnail preview
 
@@ -198,7 +201,7 @@ class MainWindow(QWidget):
 			filename, file_extension = os.path.splitext(path)
 			return(file_extension)
 		DIR =  os.path.dirname(os.path.abspath(path))
-		print (len([name for name in os.listdir(DIR) if os.path.isfile(name) and getExt(path)!='.txt']))
+		#print (len([name for name in os.listdir(DIR) if os.path.isfile(name) and getExt(path)!='.txt']))
 		return (len([name for name in os.listdir(DIR) if os.path.isfile(name) and getExt(path)!='.txt']))
 
 
