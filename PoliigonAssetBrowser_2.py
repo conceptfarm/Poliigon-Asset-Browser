@@ -27,6 +27,9 @@ TODO:
 import os
 import traceback, sys
 import platform
+from pathlib import PurePath
+
+from tinydb import TinyDB, Query
 
 from PyQt5.QtWidgets import (QWidget, QSplitter, QHBoxLayout, QFileSystemModel,QTreeView,QListView,  QStyle,QLabel, QComboBox, QPushButton, QApplication, QStyleFactory, QGridLayout, QVBoxLayout, QLayout, QSizePolicy, QProgressBar, QPlainTextEdit, QButtonGroup, QRadioButton, QCheckBox, QFrame, QSpacerItem )
 from PyQt5.QtCore import Qt, QCoreApplication, QRect, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool, QSize,QModelIndex,QMetaObject,QDir,QDirIterator
@@ -83,6 +86,8 @@ class MainWindow(QWidget):
 		self.top = 150
 		self.width = 960
 		self.height = 480
+		self.rootPath = 'C:/poliigon/'
+		self.searchPath = 'Y:/Maps/Poliigon/'
 		self.setupUi()
 
 	def setupUi(self):
@@ -91,7 +96,7 @@ class MainWindow(QWidget):
 		#self.threadpool.setMaxThreadCount(1)
 		self.threadpool.maxThreadCount()
 				
-		self.rootPath = 'C:/poliigon/'
+		
 
 		self.model = QFileSystemModel()
 		self.model.setRootPath(self.rootPath)
@@ -154,6 +159,13 @@ class MainWindow(QWidget):
 		it = QDirIterator(thisDir, ['*_tn.jpg'],  QDir.Files, QDirIterator.Subdirectories)
 		while it.hasNext():
 			file = it.next()
+			filename, file_extension = os.path.splitext(file)
+			
+			#Get filename from path, remove spaces and remove the '_tn' from name
+			searchName = (((PurePath(filename).stem).replace(' ',''))[:-3])
+			#itSearch = QDirIterator(self.searchPath, [],  QDir.Dirs, QDirIterator.Subdirectories) #nodotanddotdot
+			#while itSearch.hasNext():
+			#	print(itSearch.next())
 			fileList.append(file)
 
 		#placeholder thumbnail, gray box
@@ -214,7 +226,11 @@ class MainWindow(QWidget):
 		p.drawPixmap(0,0,input)
 		p.end()
 		return image
-
+	
+	
+	#expects full file path	
+	def getStemFromPath(self, path):
+		return PurePath(os.path.dirname(os.path.abspath(path))).stem
 
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
