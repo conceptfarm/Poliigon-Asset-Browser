@@ -12,30 +12,32 @@ sources:
 TODO:
 	- convert to pyside to be usable in 3dsmax
 	- double click thumb -> build material
-	- double click thumb -> if asset not purchased -> take to the poliigon website
 	- scale thumbs to fit nicely
-	- search bar
 	- root folder display
-	- dark theme would be nice
 	- large size thumbnail preview
+	- semi transparent thumbs don't work well, may need another way to dif purchased and not
 
 DONE:
 	- file count merge from previous
 	- grayed out material thumbnails for not purchased materials - needs testing
+	- double click thumb -> if asset not purchased -> take to the poliigon website
+	- search bar
+	- dark theme would be nice
 '''
 
 import os
 import traceback, sys
 import platform
 from pathlib import PurePath
+import webbrowser
 
 from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 
 from PyQt5.QtWidgets import (QWidget, QProgressDialog, QMessageBox ,QMainWindow ,QSplitter, QHBoxLayout, QFileSystemModel,QTreeView,QListView, QStyle,QLabel, QLineEdit, QComboBox, QPushButton, QApplication, QStyleFactory, QGridLayout, QVBoxLayout, QLayout, QSizePolicy, QProgressBar, QPlainTextEdit, QButtonGroup, QRadioButton, QCheckBox, QFrame, QSpacerItem ,QMenuBar, QMenu,QStatusBar,QAction)
-from PyQt5.QtCore import Qt, QCoreApplication, QRect, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool, QSize,QModelIndex,QMetaObject,QDir,QDirIterator
-from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage, QPainter
+from PyQt5.QtCore import Qt, QCoreApplication, QRect, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool, QSize,QModelIndex,QMetaObject,QDir,QDirIterator,QByteArray
+from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage, QPainter, QPalette, QColor
 
 
 class WorkerSignals(QObject):
@@ -87,6 +89,38 @@ class Worker(QRunnable):
 		finally:
 			self.signals.finished.emit()  # Done
 		
+class IconListItem(QStandardItem):
+	def __init__(self,*args, **kwargs):
+		super().__init__(*args,**kwargs)
+		self.thumbPath = ''
+		self.purchased = False
+		self.webSource = ''
+		self.dimensions = None
+
+	def setThumbPath(self, inPut):
+		self.thumbPath = inPut
+
+	def setPurchased(self, inPut):
+		self.purchased = inPut
+
+	def setWebSource(self):
+		fLocation = os.path.dirname(self.thumbPath) + '/webSource.txt'
+		try:
+			f = open(fLocation, 'r')
+			self.webSource = f.readline()
+			f.close()
+		except:
+			pass
+
+	def setDimensions(self):
+		fLocation = os.path.dirname(self.thumbPath) + '/dimensions.txt'
+		try:
+			f = open(fLocation, 'r')
+			self.dimensions = (f.readline()).strip('][').split(', ') 
+			f.close()
+		except:
+			pass
+
 class viewerSystemModel(QFileSystemModel):
 	def __init__(self):
 		super().__init__()
@@ -149,6 +183,10 @@ class viewerSystemModel(QFileSystemModel):
 
 class MainWindow(QMainWindow):
 	
+	iconBase64 = b'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAABnRSTlMAAAAAAABupgeRAAAEYUlEQVRYhd2ZzW8bRRiHn9nvXX/E+SAFEkCqygVVolJBoFZCVIJKlUBccuGWK/8Afw4CAUVwgBsttIC49JBDewFVQsCptGkS7Di2d73r3RkOcRLbya7Xa/vCe9zdeeeZmd+88867ghmYwPIAos70vvSpHdiUVyitYFfQTJIeKpnGnyjeVNNxarg1dPPkYRIR7BM0C2MVAxLYFbxFDAdxyoNSxF38OmEb1PyBTBdvCauE0LI+U5KwjV8n7s4NSDdxF3GqaEbeJjImaBLsI3szBRI6ThV3EcPKi3JsSpFEBA26Byg5PZDAKuEtYbpnyGUirJ6PXyfys4WV2Yfh4C1iVdAy5SITwhaAXUHLjCMyIWwT1InDCYE0A7eGU0PPlIuSRD5+nZ4PHM2lN2Yukx7dQ2HFOYCE1t/Sup3lVynikKBB2BpShtCwq3iL6FaR5qNAloe7hOWN2dKZQwTQTNwazsJkEzwKZHosrI0XQXQYXVJFcGKGg7eEXR4zPBnT/Ide0G908kLTsloqRS/ArxN18sbfuMvBE+wSbuYmFfpgv/lCXBwS7NNt5gkkw6YI20RB/jA2DkjGdA8IGiSZofZw9Cpl5lRC0CDq9IWVqYpxQME+nb0x36yu8c4GMubut+w9Sf0siWjvAHhLUwBlr1GpwtUb3PiQ9fNIyWvXuHWTez8StAs6HErQDAu7Oiq9qHOs/yEzTC5dZfNj3t2gtgIgBLVlXr3ChYs06+xtn9235fXTy0ELD44lkfvcHrQXLvDBJq9fwyuPvjItLl3h5Yvcu8P3X/Do70l9Z0aINFt5iefO46amRKJUrb63sbr5kdAnTpELLJnAD3n4G/v/svwMldpItLc19XxFW18wxO7j+t3bows3lyXTNDotfrnF7w946zpvvk1lASl15EpJWy3prqlPnLoeWSEgQAiEYHeb777kwRbX369dvvxs1aw4OgUS6RkA9bE0lOLPh1bYfvGNVxzXVWmxMbcVEvUpLJEkQslpWYDZAM3UCgCpnEdsEgRqcjkV0lB7Dymxy2nHZNw6aPz8w/bXn5FMfH8tBJSEtLYJvX4GPWCyF7Xub21/9Wnr/paKU/LJ2QMBqH7MdKrYC4CS0v/rj6fffN746XbSST9c5wZ0SCUJ9um2Zdl+evOTxq93ou3HY5pkp7NDObVdpro2enS0d/DrueCESE3QDk23zk7QlKL56Li2NN0MjfhNs0lu4rMDSmEZn+SnAkmJkogcCYOmI3Ps55zXIJUMBraB7mWPuIvQ0Y2T0ZyZflTOYTgkUWqE1Ey8ZcqrWJkToyRRh/bOYBfDSxb59Lrjr9KagbOAVZ7HVfqUhpSk2+xfWdxaqkfAdDDOYVfmXGwYonVAEJ9asto6VunkwUzLMZm7LGd5UNPHzCUTFKzmve0nLunNGWjyomcBIEUcYrpzKgsX+rUQ+SQ9dAPNSC2ct3fx66kVrXT7n/xaGDDdxlvErgBHhZtoGn9TAx06md3vqf8AWEoJPWt5ZeMAAAAASUVORK5CYII='
+	
+	
+
 	def __init__(self):
 		super().__init__()
 		self.left = 150
@@ -156,16 +194,18 @@ class MainWindow(QMainWindow):
 		self.width = 960
 		self.height = 480
 		self.rootPath = 'C:/poliigon/'
-		#self.searchPath = 'Y:/Maps/Poliigon/'
-		self.searchPath = 'Y:/Maps/Poliigon_com/'
+		self.searchPath = 'Y:/Maps/Poliigon/'
+		#self.searchPath = 'Y:/Maps/Poliigon_com/'
 		self.dbPath = 'poliigon.json'
 		self.db = TinyDB(self.dbPath, storage=CachingMiddleware(JSONStorage))
-		self.letRun = False
 		self.dbQuery = Query()
+		self.icon = self.iconFromBase64(self.iconBase64)
 		self.setupUi(self)
 
 	def setupUi(self, MainWindow):
 		self.setGeometry(self.left, self.top, self.width, self.height)
+		self.setWindowIcon(self.icon)
+		self.setWindowTitle('poliigon asset browser')
 		self.threadpool = QThreadPool()
 		#self.threadpool.setMaxThreadCount(1)
 		self.threadpool.maxThreadCount()
@@ -176,16 +216,22 @@ class MainWindow(QMainWindow):
 		self.verticalLayout.setSpacing(11)
 
 		self.gridLayoutControlls = QGridLayout()
+		
 		self.codecLabel = QPushButton('Test 1', self)
 		self.codecLabel.setMinimumSize(80,23)
 		self.codecLabel.setObjectName('Test1')
+		
 		self.alphaLabel = QPushButton('Test 2' , self)
 		self.alphaLabel.setMinimumSize(80,23)
-		self.frameRateLabel = QLineEdit('Search' , self)
-		self.frameRateLabel.setMinimumHeight(23)
+
+		self.searchBar = QLineEdit('' , self)
+		self.searchBar.setMinimumHeight(23)
+		self.searchBar.setObjectName('searchBar')
+		self.searchBar.setPlaceholderText('Search')
+		
 		self.gridLayoutControlls.addWidget(self.codecLabel, 0, 0, 1, 1, Qt.AlignTop)
 		self.gridLayoutControlls.addWidget(self.alphaLabel, 0, 1, 1, 1, Qt.AlignTop)
-		self.gridLayoutControlls.addWidget(self.frameRateLabel, 0, 2, 1, 1, Qt.AlignTop)
+		self.gridLayoutControlls.addWidget(self.searchBar, 0, 2, 1, 1, Qt.AlignTop)
 		
 		self.dirModel = viewerSystemModel()
 		self.dirModel.setRootPath(self.rootPath)
@@ -262,6 +308,50 @@ class MainWindow(QMainWindow):
 	
 	
 	@pyqtSlot()
+	def on_searchBar_editingFinished(self):
+		print('editing finished')
+
+	@pyqtSlot()
+	def on_searchBar_returnPressed(self):
+		print('return pressed')
+
+	@pyqtSlot(str)
+	def on_searchBar_textEdited(self, e):
+		print('text edited', e)
+		if len(e) > 3:
+			self.filesmodel.clear()
+			#thisDir = (self.dirModel.filePath(self.treeView.currentIndex()))
+			allFileList = self.dirModel.allThumbFiles
+
+			fileList = []
+			for f in allFileList:
+				#print(e, ' ', os.path.basename(f))
+				if e.lower() in os.path.basename(f.lower()):
+					fileList.append(f)
+
+
+			#placeholder thumbnail, gray box
+			placeholder = QPixmap(self.listView.iconSize())
+			placeholder.fill(Qt.gray)
+
+			#fill all items with placeholder thumbnail which is a gray box
+			for i in range(len(fileList)):
+				newItem = IconListItem(QIcon(placeholder), os.path.basename(fileList[i]))
+				newItem.setToolTip(fileList[i])
+				newItem.setThumbPath(fileList[i])
+				newItem.setEditable(False)
+				#self.filesmodel.setItem(i, QStandardItem(QIcon(placeholder), os.path.basename(fileList[i])))
+				self.filesmodel.setItem(i, newItem)
+
+			#start workers for each thumbnail to generate
+			self.threadpool.clear()
+			self.threadpool.maxThreadCount()
+			for i in range(len(fileList)):
+				worker = Worker(self.List,'tuple', fileList[i], self.listView.iconSize(), i)
+				worker.signals.progressTuple.connect(self.setThumbs)
+				self.threadpool.start(worker)
+
+	@pyqtSlot()
 	def on_Test1_clicked(self):
 		print('test1 clicked')
 		print(self.dirModel.totalFileCount)
@@ -270,10 +360,6 @@ class MainWindow(QMainWindow):
 	def on_actionUpdateDB_triggered(self):
 		print('clicked update')
 
-	
-	def updatePorgressWindow(self,tup):
-		#print('thread end')
-		self.progressWindow.setValue(self.progressWindow.value() + 1)
 
 	def endProgressWindow(self):
 		print('ended')
@@ -359,10 +445,19 @@ class MainWindow(QMainWindow):
 
 	@pyqtSlot(QModelIndex)
 	def on_listView_doubleClicked(self, index):
-	#def test(self, index):
 		thisItem = (self.filesmodel.itemFromIndex(self.listView.currentIndex()))
+		thisItem.setWebSource()
+		thisItem.setDimensions()
 		print(thisItem.toolTip())
-		self.getFileNumber(thisItem.toolTip())
+		print(thisItem.purchased)
+		print(thisItem.webSource)
+		print(thisItem.dimensions)
+
+		if thisItem.purchased:
+			#create material in max here
+			pass
+		else:
+			webbrowser.open_new(thisItem.webSource)
 	
 	
 	@pyqtSlot(QModelIndex)
@@ -377,8 +472,9 @@ class MainWindow(QMainWindow):
 
 		#fill all items with placeholder thumbnail which is a gray box
 		for i in range(len(fileList)):
-			newItem = QStandardItem(QIcon(placeholder), os.path.basename(fileList[i]))
+			newItem = IconListItem(QIcon(placeholder), os.path.basename(fileList[i]))
 			newItem.setToolTip(fileList[i])
+			newItem.setThumbPath(fileList[i])
 			newItem.setEditable(False)
 			#self.filesmodel.setItem(i, QStandardItem(QIcon(placeholder), os.path.basename(fileList[i])))
 			self.filesmodel.setItem(i, newItem)
@@ -407,6 +503,7 @@ class MainWindow(QMainWindow):
 			
 			if self.db.contains(self.dbQuery.thumb == item.toolTip()):
 				icon = QIcon(QPixmap.fromImage(img))
+				item.setPurchased(True)
 			else:
 				transImg = self.transparentIcon(img)
 				icon = QIcon(QPixmap.fromImage(transImg))
@@ -438,8 +535,30 @@ class MainWindow(QMainWindow):
 	def getStemFromPath(self, path):
 		return PurePath(os.path.dirname(os.path.abspath(path))).stem
 
+	def iconFromBase64(self, base64):
+		pixmap = QPixmap()
+		pixmap.loadFromData(QByteArray.fromBase64(base64))
+		icon = QIcon(pixmap)
+		return icon
+
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
 	app.setStyle('Fusion')
+	# Now use a palette to switch to dark colors:
+	palette = QPalette()
+	palette.setColor(QPalette.Window, QColor(53, 53, 53))
+	palette.setColor(QPalette.WindowText, Qt.white)
+	palette.setColor(QPalette.Base, QColor(25, 25, 25))
+	palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+	palette.setColor(QPalette.ToolTipBase, Qt.white)
+	palette.setColor(QPalette.ToolTipText, Qt.white)
+	palette.setColor(QPalette.Text, Qt.white)
+	palette.setColor(QPalette.Button, QColor(53, 53, 53))
+	palette.setColor(QPalette.ButtonText, Qt.white)
+	palette.setColor(QPalette.BrightText, Qt.red)
+	palette.setColor(QPalette.Link, QColor(42, 130, 218))
+	palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+	palette.setColor(QPalette.HighlightedText, Qt.black)
+	app.setPalette(palette)
 	ex = MainWindow()
 	sys.exit(app.exec_())
