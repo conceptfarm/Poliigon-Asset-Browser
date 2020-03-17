@@ -16,6 +16,8 @@ TODO:
 	- root folder display
 	- large size thumbnail preview
 	- semi transparent thumbs don't work well, may need another way to dif purchased and not
+	- scroll to top
+	- config on startup (build database, thumbs folder, assets folder)
 
 DONE:
 	- file count merge from previous
