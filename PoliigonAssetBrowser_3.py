@@ -12,11 +12,9 @@ sources:
 TODO:
 	- convert to pyside to be usable in 3dsmax
 	- double click thumb -> build material
-	- scale thumbs to fit nicely
+	- scale thumbs to fit nicely - done - issue: when number of items is less than can fit on the row -> scaling looks weird
 	- root folder display
 	- large size thumbnail preview
-	- semi transparent thumbs don't work well, may need another way to dif purchased and not
-	- scroll to top
 	- config on startup (build database, thumbs folder, assets folder)
 
 DONE:
@@ -25,6 +23,8 @@ DONE:
 	- double click thumb -> if asset not purchased -> take to the poliigon website
 	- search bar
 	- dark theme would be nice
+	- scroll to top
+	- semi transparent thumbs don't work well, may need another way to dif purchased and not
 '''
 
 import os
@@ -32,6 +32,7 @@ import traceback, sys
 import platform
 from pathlib import PurePath
 import webbrowser
+from math import floor
 
 from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
@@ -39,7 +40,7 @@ from tinydb.middlewares import CachingMiddleware
 
 from PyQt5.QtWidgets import (QWidget, QProgressDialog, QMessageBox ,QMainWindow ,QSplitter, QHBoxLayout, QFileSystemModel,QTreeView,QListView, QStyle,QLabel, QLineEdit, QComboBox, QPushButton, QApplication, QStyleFactory, QGridLayout, QVBoxLayout, QLayout, QSizePolicy, QProgressBar, QPlainTextEdit, QButtonGroup, QRadioButton, QCheckBox, QFrame, QSpacerItem ,QMenuBar, QMenu,QStatusBar,QAction)
 from PyQt5.QtCore import Qt, QCoreApplication, QRect, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool, QSize,QModelIndex,QMetaObject,QDir,QDirIterator,QByteArray
-from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage, QPainter, QPalette, QColor
+from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage, QPainter, QPalette, QColor, QPen, QResizeEvent
 
 
 class WorkerSignals(QObject):
@@ -48,7 +49,6 @@ class WorkerSignals(QObject):
 	result = pyqtSignal(object)
 	progressTuple = pyqtSignal(tuple)
 	progressInt = pyqtSignal(int)
-
 
 
 class Worker(QRunnable):
@@ -90,6 +90,7 @@ class Worker(QRunnable):
 			self.signals.result.emit(result)  # Return the result of the processing
 		finally:
 			self.signals.finished.emit()  # Done
+
 		
 class IconListItem(QStandardItem):
 	def __init__(self,*args, **kwargs):
@@ -122,6 +123,19 @@ class IconListItem(QStandardItem):
 			f.close()
 		except:
 			pass
+
+class IconListView(QListView):
+	def __init__(self):
+		super().__init__()
+
+	def calculateSize(self):
+		itemsInRow = floor((self.viewport().width() - 1) / 180)
+		return 180 + floor(((self.viewport().width() - 1) % 180)/itemsInRow)
+
+	def resizeEvent(self, e):
+		self.setGridSize(QSize(self.calculateSize(),180))
+		super(IconListView, self).resizeEvent(e)
+
 
 class viewerSystemModel(QFileSystemModel):
 	def __init__(self):
@@ -255,7 +269,9 @@ class MainWindow(QMainWindow):
 		self.treeView.hideColumn(3)
 		self.treeView.setColumnWidth(0,280)
 		
-		self.listView = QListView()
+
+		self.listView = IconListView()
+		#self.listView = QListView()
 		self.listView.setModel(self.filesmodel)
 		self.listView.setObjectName('listView')
 		self.listView.setViewMode(1)
@@ -308,7 +324,10 @@ class MainWindow(QMainWindow):
 
 		self.show()
 	
-	
+	#@pyqtSlot(QResizeEvent)
+	#def resizeEvent(self, e):
+	#	print('resize event', self.sender(), e)
+
 	@pyqtSlot()
 	def on_searchBar_editingFinished(self):
 		print('editing finished')
@@ -478,8 +497,9 @@ class MainWindow(QMainWindow):
 			newItem.setToolTip(fileList[i])
 			newItem.setThumbPath(fileList[i])
 			newItem.setEditable(False)
-			#self.filesmodel.setItem(i, QStandardItem(QIcon(placeholder), os.path.basename(fileList[i])))
 			self.filesmodel.setItem(i, newItem)
+
+		self.listView.scrollToTop()
 
 		#start workers for each thumbnail to generate
 		self.threadpool.clear()
@@ -504,11 +524,12 @@ class MainWindow(QMainWindow):
 		if item != None:
 			
 			if self.db.contains(self.dbQuery.thumb == item.toolTip()):
-				icon = QIcon(QPixmap.fromImage(img))
+				transImg = self.borderIcon(img, Qt.green)
+				icon = QIcon((transImg))
 				item.setPurchased(True)
 			else:
-				transImg = self.transparentIcon(img)
-				icon = QIcon(QPixmap.fromImage(transImg))
+				transImg = self.borderIcon(img, Qt.gray)
+				icon = QIcon((transImg))
 				
 			item.setIcon(icon)
 
@@ -521,14 +542,30 @@ class MainWindow(QMainWindow):
 		#print (len([name for name in os.listdir(DIR) if os.path.isfile(name) and getExt(path)!='.txt']))
 		return (len([name for name in os.listdir(DIR) if os.path.isfile(name) and getExt(path)!='.txt']))
 
+	def borderIcon (self, input, borderColour):
+		input = QPixmap.fromImage(input)
+		p = QPainter(input)
+		pen = QPen()
+		pen.setColor(borderColour)
+		pen.setWidth(1)
+		p.setPen(pen)
+		p.drawRect(0,0,input.width()-1,input.height()-1)
+		p.end()
+		return input
 
-	def transparentIcon (self, input):
+	def transparentIcon (self, input, borderColour):
 		input = QPixmap.fromImage(input)
 		image = QImage(input.size(),QImage.Format_ARGB32_Premultiplied)
 		image.fill(Qt.transparent)
 		p = QPainter(image)
 		p.setOpacity(0.5)
 		p.drawPixmap(0,0,input)
+		p.setOpacity(1.0)
+		pen = QPen()
+		pen.setColor(borderColour)
+		pen.setWidth(1)
+		p.setPen(pen)
+		p.drawRect(0,0,input.width()-1,input.height()-1)
 		p.end()
 		return image
 	
