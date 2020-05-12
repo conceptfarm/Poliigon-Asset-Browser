@@ -44,9 +44,12 @@ from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 
+from generateResolutionsClass import GenerateResolutions
+
 from PyQt5.QtWidgets import (QWidget, QProgressDialog, QMessageBox ,QMainWindow ,QSplitter, QHBoxLayout, QFileSystemModel, QTreeView,QListView, QStyle,QLabel, QLineEdit, QComboBox, QPushButton, QApplication, QStyleFactory, QGridLayout, QVBoxLayout, QLayout, QSizePolicy, QProgressBar, QPlainTextEdit, QButtonGroup, QRadioButton, QCheckBox, QFrame, QSpacerItem ,QMenuBar, QMenu,QStatusBar,QAction)
 from PyQt5.QtCore import Qt, QCoreApplication, QRect, QObject, pyqtSignal, QRunnable, pyqtSlot, QThreadPool, QSize, QModelIndex, QMetaObject, QDir, QDirIterator,QByteArray, QUrl, QMimeData, QVariant,QTimer,QPoint, QSortFilterProxyModel
 from PyQt5.QtGui import QIcon,QPixmap,QStandardItemModel,QStandardItem,QImage, QPainter, QPalette, QColor, QPen, QResizeEvent, QDrag
+
 
 
 rulerBase64 = b'iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAFFmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS42LWMxNDggNzkuMTY0MDM2LCAyMDE5LzA4LzEzLTAxOjA2OjU3ICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjEuMCAoV2luZG93cykiIHhtcDpDcmVhdGVEYXRlPSIyMDIwLTAzLTI3VDAzOjM4OjU5LTA0OjAwIiB4bXA6TW9kaWZ5RGF0ZT0iMjAyMC0wMy0yN1QwMzo0MDowNS0wNDowMCIgeG1wOk1ldGFkYXRhRGF0ZT0iMjAyMC0wMy0yN1QwMzo0MDowNS0wNDowMCIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHBob3Rvc2hvcDpDb2xvck1vZGU9IjMiIHBob3Rvc2hvcDpJQ0NQcm9maWxlPSJzUkdCIElFQzYxOTY2LTIuMSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDo0ZjlhOGI1Ni02OWMyLTI5NDgtODA4Zi0wYTViZDA3MTFhZWUiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6NGY5YThiNTYtNjljMi0yOTQ4LTgwOGYtMGE1YmQwNzExYWVlIiB4bXBNTTpPcmlnaW5hbERvY3VtZW50SUQ9InhtcC5kaWQ6NGY5YThiNTYtNjljMi0yOTQ4LTgwOGYtMGE1YmQwNzExYWVlIj4gPHhtcE1NOkhpc3Rvcnk+IDxyZGY6U2VxPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0iY3JlYXRlZCIgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDo0ZjlhOGI1Ni02OWMyLTI5NDgtODA4Zi0wYTViZDA3MTFhZWUiIHN0RXZ0OndoZW49IjIwMjAtMDMtMjdUMDM6Mzg6NTktMDQ6MDAiIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFBob3Rvc2hvcCAyMS4wIChXaW5kb3dzKSIvPiA8L3JkZjpTZXE+IDwveG1wTU06SGlzdG9yeT4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz7FQijGAAAA+0lEQVRIDWP4//8/A5nYBIgvA/FzHPg+EEcwUGDBSiD+CsTrceCnIEsosWAzED8GYg4oZkGTXwvyCSUWbATiz0A8F4o9qG0ByAcP8chTxQfvgbgICYdR2weg1GKEhNWGVBDRJQ5AqWgqFLvQwgegfCAAxRxDMohARcVSJFw1ID4wgHK2A/FWKI2Ot2JhvyTWgpNQr96FpgoQ/RpaGt6F4o9Qw5DVgPBbtCBCxiD1T0EW3AbinVBbl0LpLCC2QnJNLxBLoKlBZ+P0AV0t8MBhgR0Qc1HDAhj2A2IdHBorqGEBsXhwWHAZmqbXk4EfE1PpB0DT9HMy8FNCzRYAW1JcK+CIZ7gAAAAASUVORK5CYII='
@@ -74,8 +77,6 @@ def createMSFile(basepath, fileList, dimensions, materialName):
 		result = list(result)
 		result[-1] = ')'
 		return ''.join(result)
-
-
 
 
 	tempMSFile = tempfile.NamedTemporaryFile(mode = 'w+', newline='\n',suffix='.ms',delete=False)
@@ -268,17 +269,16 @@ class CustomProxyModel(QSortFilterProxyModel):
 	def __init__(self, parent=None):
 		super().__init__(parent)
 		self.nameRegExp = ""
-		self.roleRegExp = False
+		self.roleRegExp = ""
 	
 	def filterAcceptsRow(self, sourceRow, sourceParent):
 		index = self.sourceModel().index(sourceRow, 0, sourceParent)
 
 		name = str(self.sourceModel().data(index, Qt.DisplayRole)).lower()
-		role = (self.sourceModel().data(index, Qt.UserRole + 4))
+		role = str(self.sourceModel().data(index, Qt.UserRole + 4))
 
-		return (self.nameRegExp in name and self.roleRegExp == role)
-	
-	
+		return (self.nameRegExp in name and self.roleRegExp in role)
+
 	def setNameFilter(self, text):
 		self.nameRegExp = text.lower()
 		self.invalidateFilter()
@@ -632,18 +632,20 @@ class MainWindow(QMainWindow):
 		self.statusbar.setObjectName("statusbar")
 		MainWindow.setStatusBar(self.statusbar)
 		
-		self.actionReBuildDB = QAction('Re-Build DB', MainWindow)
+		self.actionReBuildDB = QAction('Re-Build Database', MainWindow)
 		self.actionReBuildDB.setObjectName("actionReBuildDB")
 
-		self.actionUpdateDB = QAction('Update DB', MainWindow)
-		self.actionUpdateDB.setObjectName("actionUpdateDB")
+		self.actionGenResImages = QAction('Generate Lower Resolution Files', MainWindow)
+		self.actionGenResImages.setObjectName("actionGenResImages")
 
 		self.menuFile.addAction(self.actionReBuildDB)
-		self.menuFile.addAction(self.actionUpdateDB)
+		self.menuFile.addAction(self.actionGenResImages)
 		self.menubar.addAction(self.menuFile.menuAction())
 
 		#self.listView.doubleClicked.connect(self.test)
-		QMetaObject.connectSlotsByName(self) # auto connects defs on_Object_signal to object signal !use setObjectName, won't work with var name
+		# auto connects defs on_Object_signal to object signal 
+		# !use setObjectName, won't work with var name
+		QMetaObject.connectSlotsByName(self) 
 
 		#timer for triggering item list icon population
 		self.tmr = QTimer()
@@ -704,6 +706,7 @@ class MainWindow(QMainWindow):
 			
 			self.tmr.start(150)
 
+	#TODO: set search through all from above
 	@pyqtSlot(bool)
 	def on_filterAll_clicked(self, e):
 		if e:
@@ -720,18 +723,37 @@ class MainWindow(QMainWindow):
 		if e:
 			self.sender().setStyleSheet("background-color:green;")
 			self.sender().setText("Show All")
-			self.proxyModel.setRoleFilter(True)
+			self.proxyModel.setRoleFilter("True")
 		else:
 			self.sender().setStyleSheet("background-color:rgb(53, 53, 53);")
 			self.sender().setText("Show Available")
-			self.proxyModel.setRoleFilter(False)
+			self.proxyModel.setRoleFilter("")
+
+	def endProgressGenResWindow(self):
+		print('ended')
+		self.threadpool.clear()
+		self.threadpool.maxThreadCount()
+		self.progressWindow.close()
+		self.on_actionReBuildDB_triggered()
+
 
 	@pyqtSlot()
-	def on_actionUpdateDB_triggered(self):
-		print('clicked update')
+	def on_actionGenResImages_triggered(self):
 
+		self.progressWindow = QProgressDialog('Generating Image Files...', '', 0, len(self.db), self.centralwidget, Qt.Popup)
+		self.progressWindow.setObjectName('progressWindow')
+		self.progressWindow.setWindowModality(Qt.WindowModal)
+		self.progressWindow.setCancelButton(None)
+		self.progressWindow.show()
 
-	def endProgressWindow(self):
+		self.gr = GenerateResolutions(self.db, False)
+		self.threadpool.setMaxThreadCount(1)
+		worker = Worker(self.gr.main,'int')
+		worker.signals.progressInt.connect(self.progressWindow.setValue)
+		worker.signals.finished.connect(self.endProgressGenResWindow)
+		self.threadpool.start(worker)
+
+	def endProgressUpdateDBWindow(self):
 		print('ended')
 		self.threadpool.clear()
 		self.threadpool.maxThreadCount()
@@ -742,7 +764,7 @@ class MainWindow(QMainWindow):
 
 	@pyqtSlot()
 	def on_actionReBuildDB_triggered(self):
-		
+		print('in action')
 		doUpdateDB = False
 		try:
 			print('in try')
@@ -751,6 +773,7 @@ class MainWindow(QMainWindow):
 			self.db = TinyDB(self.dbPath, storage=(CachingMiddleware(JSONStorage)))
 			doUpdateDB = True
 		except:
+			print('except')
 			self.messageBox = QMessageBox.critical(self.centralwidget, 'DB Update Error', 'The database is currently in use elsewhere.\nPlease close all other asset browsers and try again.')
 
 		
@@ -768,12 +791,13 @@ class MainWindow(QMainWindow):
 			self.threadpool.setMaxThreadCount(1)
 			worker = Worker(self.updateDB,'int', allFiles)
 			worker.signals.progressInt.connect(self.progressWindow.setValue)
-			worker.signals.finished.connect(self.endProgressWindow)
+			worker.signals.finished.connect(self.endProgressUpdateDBWindow)
 			self.threadpool.start(worker)
 		
 
 	#update db should have all instances of the asset folder 3K 1K HiRes, add those types to db as well
 	#error in matching such as tiles04 matches to tiles042 and tiles043, need to do exact match
+	#TODO: add metalness maps
 	def updateDB(self, searchInFiles, progress_callback):
 		for i in range(self.dirModel.totalFileCount):
 			file = self.dirModel.allThumbFiles[i]
@@ -788,7 +812,12 @@ class MainWindow(QMainWindow):
 					assetsList.append(os.path.dirname(os.path.abspath(thisFile)))
 					assetRes = os.path.basename(thisFile).split('_')
 					if len(assetRes) > 1:
-						assetsResList.append(assetRes[-1])
+						#if last element is ex. "metalness.jpg" then get the second to last element
+						#which should be the res designation
+						if (assetRes[-1].split('.'))[0].lower() == 'metalness':
+							assetsResList.append(assetRes[-2])
+						else:
+							assetsResList.append((assetRes[-1].split('.'))[0])
 					else:
 						assetsResList.append('HIRES')
 
@@ -841,6 +870,7 @@ class MainWindow(QMainWindow):
 
 		return {'containsInDB': containsInDB, 'assetFiles': assetFiles, 'basedir':basedir}
 
+	#no used?
 	def setSearchedData(self, thisModel, fileList):
 		for i in range(len(fileList)):	
 			searchResult = self.checkIfContains(fileList[i], self.db, self.dbQuery)
@@ -954,7 +984,7 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
 	app = QApplication(sys.argv)
 	app.setStyle('Fusion')
-	# Now use a palette to switch to dark colors:
+	# Dark Mode
 	palette = QPalette()
 	palette.setColor(QPalette.Window, QColor(53, 53, 53))
 	palette.setColor(QPalette.WindowText, Qt.white)
