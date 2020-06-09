@@ -304,6 +304,7 @@ class LargePreviewWindow(QDialog):
 	def __init__(self, parent=None):
 		super().__init__(parent)
 		self.parent = parent
+		self.previewMaxSize = QSize(900,900)
 		self.placehloderImg = self.setPlaceholder()
 		self._model = None
 		self._sourceModel = None
@@ -338,7 +339,7 @@ class LargePreviewWindow(QDialog):
 			self.gridLayoutData.setColumnStretch(i,0)
 
 		self.previewWidget = QLabel('',self)
-		self.previewWidget.setMaximumSize(900,900)
+		self.previewWidget.setMaximumSize(self.previewMaxSize)
 		self.previewWidget.setPixmap(self.placehloderImg)
 		#self.previewWidget.setScaledContents(True)
 		self.previewWidgetPolicy = QSizePolicy()
@@ -452,12 +453,44 @@ class LargePreviewWindow(QDialog):
 	263: Qt.UserRole+8 -> small thumb path
 	'''
 	
-	#def populateData(self, _sourceModel, _sourceIndex):
+	# takes 2 QSize and outputs QRectF
+	def centerFit(self, sourceSize, targetSize):
+
+		tw = targetSize.width()
+		th = targetSize.height()
+
+		w = sourceSize.width()
+		h = sourceSize.height()
+
+		#find the minimal scale to scale-by to fit the target size
+		scale = tw/w if tw/w < th/h else th/h
+		
+		x0 = (tw - w*scale)/2
+		y0 = (th - h*scale)/2
+		x1 = tw - (tw - w*scale)/2
+		y1 = th - (th - h*scale)/2
+
+		return QRectF(QPoint(x0, y0), QPoint(x1, y1))
+
+	#generates and fits a preview image into a preview image max size
+	def formatPreviewImage(self, previewImagePath):
+		previewImage = QPixmap(previewImagePath)
+		if previewImage.width()>self.previewMaxSize.width() or previewImage.height()>self.previewMaxSize.height():
+			bgImage = QPixmap(self.previewMaxSize)
+			bgImage.fill(Qt.transparent)
+			
+			p = QPainter(bgImage)
+			source = QRectF(0,0,previewImage.width(),previewImage.height())
+			target = self.centerFit(previewImage.size(), self.previewMaxSize)
+			p.drawPixmap(target,previewImage,source)		
+			p.end()
+			return bgImage
+		else:
+			return previewImage
+
 	def populateData(self, _index):
-		#_sourceModel = _model.sourceModel()
 		_sourceIndex = self._model.mapToSource(_index)
 		itemData = self._sourceModel.itemData(_sourceIndex)
-		#print(itemData)
 
 		#convert dims string '[W, H]' to 'Wm x Hm'
 		def formatDims(dimString):
@@ -471,17 +504,15 @@ class LargePreviewWindow(QDialog):
 				return ('<a href="file:///'+filePath+'">'+filePath+'</a>')
 
 		#Make nice dims and assetRes
-		previewImage = QPixmap(itemData[257])
+		previewImage = self.formatPreviewImage(itemData[257])
 		contains = 'Yes' if itemData[260] else 'No'
 		assetDir = formatLink(itemData[259],False) if itemData[259] else '--'
 		assetRes = ', '.join(itemData[263]) if itemData[263] else '--'
 		webSource = formatLink(itemData[261]) if itemData[261] else '--'
 		dims = formatDims(itemData[262]) if itemData[262] else '--'
 		
-		#self.previewWidget.setMinimumSize(100,100)
 		self.previewWidget.setPixmap(previewImage)
 		self.previewWidget.adjustSize()
-		#self.previewWidget.setFixedSize(self.previewWidget.size())
 		self.dbPath_result_lbl.setText(formatLink(os.path.dirname(itemData[257]),False))
 		self.contains_result_lbl.setText(contains)
 		self.assetPath_result_lbl.setText(assetDir)
@@ -489,7 +520,6 @@ class LargePreviewWindow(QDialog):
 		self.web_result_lbl.setText(webSource)
 		self.dims_result_lbl.setText(dims)
 		self.setMaximumHeight(150)
-		#self.update()
 		self.adjustSize()
 
 	def showPreviewWindow(self, _model, _index):
@@ -660,28 +690,6 @@ class IconListModel(QStandardItemModel):
 		index, icon = tup
 		self.setData(index, icon, Qt.DecorationRole)
 	
-	def setWebSource(self, index):
-		fLocation = os.path.dirname(self.data(index,Qt.UserRole+1)) + '/webSource.txt'
-		try:
-			f = open(fLocation, 'r')
-			self.setData(index, f.readline(), Qt.UserRole+5)
-			f.close()
-		except:
-			self.setData(index, '', Qt.UserRole+5)
-	
-	'''
-	def setDimensions(self, index):
-		if self.data(index,Qt.UserRole+4):
-			fLocation = os.path.dirname(self.data(index,Qt.UserRole+1)) + '/dimensions.txt'
-			try:
-				f = open(fLocation, 'r')
-				#self.setData(index, ((f.readline()).strip('][').split(', ')) , Qt.UserRole+6)
-				self.setData(index, f.readline(), Qt.UserRole+6)
-				f.close()
-			except:
-				pass
-	'''
-
 	def exploreAsset(self, index):
 		if self.data(index,Qt.UserRole+4):
 			path = self.data(index,Qt.UserRole+3)
@@ -1317,13 +1325,6 @@ class MainWindow(QMainWindow):
 					self.filesmodel.setData(qMIndex, searchResult['webSource'], Qt.UserRole + 5)
 					self.filesmodel.setData(qMIndex, searchResult['assetDims'], Qt.UserRole + 6)
 					self.filesmodel.setData(qMIndex, searchResult['assetsRes'], Qt.UserRole + 7)
-					'''
-					if searchResult['webSource'] == '':
-						self.filesmodel.setWebSource(qMIndex)
-					else:
-						
-					#self.filesmodel.setDimensions(qMIndex)
-					'''
 					
 					worker = Worker(self.createItemImage, None, smallThumb, self.listView.iconSize(), qMIndex, self.filesmodel, searchResult['containsInDB'])
 					worker.signals.finished.connect(self.releasePoolThread)

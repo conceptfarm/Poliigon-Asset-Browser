@@ -1,7 +1,7 @@
 import os
 import errno
 import glob
-import ntpath
+
 
 from PIL import Image
 
@@ -11,8 +11,8 @@ from PIL import Image
 class GenerateSmallThumbs():
 	
 	#Disable decompression bomb error checking
-	Image.MAX_IMAGE_PIXELS = 1000000000
-	Image.warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+	#Image.MAX_IMAGE_PIXELS = 1000000000
+	#Image.warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 	
 	def __init__(self, inputFileList, overwrite=False, progress_callback=None):
 		self.inputFileList = inputFileList
@@ -62,11 +62,14 @@ class GenerateSmallThumbs():
 		
 		i = 0
 		for file in self.inputFileList:
+			print(file)
 			self.doFileResize(file, self.overwrite)
 			i = i + 1
 
-			if progress_callback != None:
+			if progress_callback != None and i%10 == 0:
 				try:
 					progress_callback.emit(i)
 				except:
 					print('error')
+
+		return True
