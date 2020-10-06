@@ -143,7 +143,7 @@ class GenerateResolutions():
 
 			i = i + 1
 
-			if progress_callback != None:
+			if i % 5 == 0:
 				try:
 					progress_callback.emit(i)
 				except:
