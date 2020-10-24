@@ -46,6 +46,7 @@ import time
 import configparser
 import re
 import pickle
+import random
 
 #tinyDB Classes
 from tinydb import TinyDB, Query
@@ -642,9 +643,11 @@ class IconListModel(QStandardItemModel):
 
 	def loadIconFromBase64 (self, _bytes):
 		base64 = bytes(_bytes,'utf-8')
+		#print(base64)
 		pixmap = QPixmap()
 		pixmap.loadFromData(QByteArray.fromBase64(base64))
 		_icon = QIcon(pixmap)
+		#print(_icon)
 		#self.setData(_index, _icon, Qt.DecorationRole)
 		return _icon
 
@@ -1084,7 +1087,7 @@ class MainWindow(QMainWindow):
 			self.iconListView.scrollToTop()
 
 			#trigger item icon creation by starting the timer
-			self.tmr.start()
+			self.tmr.start(50)
 		else:
 			print('waiting')
 			self.threadpool.waitForDone(500)
@@ -1485,7 +1488,7 @@ class MainWindow(QMainWindow):
 			
 			
 			for count, item in enumerate(batch):
-				i = count + self.iterImg.getI()				
+				i = count + self.iterImg.getI()
 				self.threadpoolQLength = self.threadpoolQLength + 1
 				
 				qMIndex = self.iconListModel.index(i,0)
@@ -1493,10 +1496,10 @@ class MainWindow(QMainWindow):
 				
 				#if contains a small thumbnail then set it otherwise use the large image
 				if os.path.isfile(smallThumbPath):
-					self.iconListModel.setData(qMIndex ,smallThumbPath, Qt.UserRole + 8) #smallThumbPath
+					self.iconListModel.setData(qMIndex, smallThumbPath, Qt.UserRole + 8) #smallThumbPath
 					smallThumb = smallThumbPath
 				else:
-					self.iconListModel.setData(qMIndex ,item['thumb'], Qt.UserRole + 8) #smallThumbPath
+					self.iconListModel.setData(qMIndex, item['thumb'], Qt.UserRole + 8) #smallThumbPath
 					smallThumb = item['thumb']
 				
 				parsedItem = self.parseSearchResult(item)
@@ -1507,9 +1510,11 @@ class MainWindow(QMainWindow):
 				self.iconListModel.setData(qMIndex, parsedItem['webSource'], Qt.UserRole + 5)
 				self.iconListModel.setData(qMIndex, parsedItem['assetDims'], Qt.UserRole + 6)
 				self.iconListModel.setData(qMIndex, parsedItem['assetsRes'], Qt.UserRole + 7)
-				
+
+				#print(item['image'],'\n image', random.randint(0,1000000))
+				imageBytes = item['image']
 				#worker = Worker(self.loadItemIcon, None, smallThumb, self.iconListView.iconSize(), qMIndex, self.iconListModel, parsedItem['containsInDB'])
-				worker = Worker(self.loadItemIcon, None, qMIndex, self.iconListModel, item['image'])
+				worker = Worker(self.loadItemIcon, None, qMIndex, self.iconListModel, imageBytes)
 				#worker = Worker(self.loadItemIcon, None, item, self.iconListView.iconSize(), qMIndex, self.iconListModel)
 				worker.signals.finished.connect(self.releasePoolThread)
 				worker.signals.result.connect(self.iconListModel.setThumbs)
