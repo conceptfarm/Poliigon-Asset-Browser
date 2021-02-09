@@ -135,8 +135,10 @@ struct pyPoliigonStruct
 		--start = timeStamp()
 		bm = Bitmaptexture fileName: bmFile
 		bm.name = bmType
+		bm.alphaSource = 2
 		
-		if (bmType == "_NRM_" or bmType == "_NRM16_" or bmType == "_DISP_" or bmType == "_DISP16_" or bmType == "_GLOSS_") and (useGamma_var) then
+		--data map channel must have map gamma set to 1.0
+		if (bmType != "_AO_" and bmType != "_COL_" and bmType != "_SSS_") and (useGamma_var) then
 		(
 			gammaBitmap = openBitmap bmFile gamma:1.0
 			bm.bitmap = gammaBitmap
@@ -254,14 +256,30 @@ struct pyPoliigonStruct
 		updateProgressBar ProgressBarRO.CTRL_progressBar
 
 		--NORMAL MAP--
-		if _NRM_ != undefined and use16bit_var == false then
+		if _NRM_ != undefined or _NRM16_ != undefined then
 		(
-			mat.texmap_bump = _NRM_
-			mat.texmap_bump_multiplier = 100
-		)
-		else if (_NRM16_ != undefined and use16bit_var) then
-		(
-			mat.texmap_bump = _NRM16_
+			if use16bit_var == true then
+			(
+				if _NRM16_ != undefined then
+				(
+					mat.texmap_bump = _NRM16_
+				)
+				else
+				(
+					mat.texmap_bump = _NRM_
+				)
+			)
+			else
+			(
+				if _NRM_ != undefined then 
+				(
+					mat.texmap_bump = _NRM_
+				)
+				else
+				(
+					mat.texmap_bump = _NRM16_
+				)
+			)
 			mat.texmap_bump_multiplier = 100
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
@@ -302,32 +320,60 @@ struct pyPoliigonStruct
 		--DISPLACEMENT--
 		if useDISP_var then
 		(
-			if _DISP_ != undefined and use16bit_var == false then
+			if _DISP_ != undefined or _DISP16_ != undefined then
 			(
-				if _DISP_.count > 1 then 
+				buildMatUsing16bit = false
+				if use16bit_var == true then
 				(
-					BaseMap = CompositeTexturemap()
-					BaseMap.mapEnabled.count = _DISP_.count
-					BaseMap.LayerName[1] = "Base"
-					BaseMap.mapList[1] = _DISP_[1]
-					
-					for i = 2 to _DISP_.count do 
+					if _DISP16_ != undefined then
 					(
-						BaseMap.blendMode[i] = 5
-						BaseMap.LayerName[i] = "Disp Add " + i as string
-						MapAdd = BaseMap.mapList[i] = _DISP_[i]
+						buildMatUsing16bit = true
 					)
-
-					mat.texmap_displacement = BaseMap
+					else
+					(
+						buildMatUsing16bit = false
+					)
 				)
-				else 
+				else
 				(
-					mat.texmap_displacement = _DISP_[1]
+					if _DISP_ != undefined then 
+					(
+						buildMatUsing16bit = false
+					)
+					else
+					(
+						buildMatUsing16bit = true
+					)
 				)
-			)
-			else if _DISP16_ != undefined and use16bit_var then
-			(
-				mat.texmap_displacement = _DISP16_
+				
+				if buildMatUsing16bit == true then
+				(
+					mat.texmap_displacement = _DISP16_
+				)
+				else
+				(
+					if _DISP_.count > 1 then 
+					(
+						BaseMap = CompositeTexturemap()
+						BaseMap.mapEnabled.count = _DISP_.count
+						BaseMap.LayerName[1] = "Base"
+						BaseMap.mapList[1] = _DISP_[1]
+						
+						for i = 2 to _DISP_.count do 
+						(
+							BaseMap.blendMode[i] = 5
+							BaseMap.LayerName[i] = "Disp Add " + i as string
+							MapAdd = BaseMap.mapList[i] = _DISP_[i]
+						)
+
+						mat.texmap_displacement = BaseMap
+					)
+					else 
+					(
+						mat.texmap_displacement = _DISP_[1]
+					)
+				)
+				mat.texmap_displacement_multiplier = 5
 			)
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
