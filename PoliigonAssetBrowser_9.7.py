@@ -176,7 +176,7 @@ def createMSFile(basepath, fileResList, file2DList, dimensions, materialName):
 		matStructVar = matStructVar + '_' + fileResList[i] + '_:new' + str(i) + ' '
 
 	
-	tempMSFile.write('matDimensions=' + ('undefined' if dimensions == None else str(dimensions)) + '\n')
+	tempMSFile.write('matDimensions=' + ('undefined' if dimensions == None or dimensions == '' else str(dimensions)) + '\n')
 	tempMSFile.write(matStructVar + ' pyDimensions:matDimensions pyMaterialName:"'+materialName+'" pyScriptFilePath:getSourceFileName() \n')
 	tempMSFile.write('pyPoliigonMaterial.show()' + '\n')
 	tempMSFile.close()
@@ -451,6 +451,18 @@ class LargePreviewWindow(QDialog):
 	263: Qt.UserRole+8 -> small thumb path
 	'''
 	
+	#centers this widget to the center of the main window 
+	def centerPos(self):
+		self.adjustSize()
+		parentGeo = self.parent.parent.parent().geometry()
+		selfGeo = self.geometry()
+		offset = parentGeo.center() - selfGeo.center()
+		selfGeo.translate(offset)
+		self.setGeometry(selfGeo)
+		#print(self.geometry())
+		#print(app.desktop().screenGeometry())
+
+
 	# takes 2 QSize and outputs QRectF
 	def centerFit(self, sourceSize, targetSize):
 
@@ -517,7 +529,7 @@ class LargePreviewWindow(QDialog):
 		self.web_result_lbl.setText(webSource)
 		self.dims_result_lbl.setText(dims)
 		self.setMaximumHeight(150)
-		self.adjustSize()
+		self.centerPos()
 
 	def showPreviewWindow(self, _model, _index):
 		self._model = _model
@@ -583,8 +595,11 @@ class IconListView(QListView):
 		contains = itemData[260] # +4
 		dims = itemData[262] # +6
 		assetsRes = itemData[263] # +7
+		print('dims is ' + dims)
+		print(dims == '')
 
-
+		print(dims == None)
+		
 		#Maybe replace with itemData function
 		#thumb = self.model().data(self.currentIndex() , Qt.UserRole + 1)
 		#assetFiles = self.model().data(self.currentIndex() , Qt.UserRole + 2)
