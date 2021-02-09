@@ -1,3 +1,4 @@
 # Poliigon Asset Browser
-Asset browser for poliigon materials, assumes use of scraper for directory setup
-<img src="https://github.com/conceptfarm/MaxFileArchiver/blob/master/screencap.png">
+Asset browser for poliigon materials, assumes use of scraper for directory setup.
+Drag and drop materials into 3ds max workspace windwow
+<img src="https://github.com/conceptfarm/Poliigon-Asset-Browser/blob/master/screencap.png">
