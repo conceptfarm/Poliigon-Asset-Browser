@@ -595,11 +595,7 @@ class IconListView(QListView):
 		contains = itemData[260] # +4
 		dims = itemData[262] # +6
 		assetsRes = itemData[263] # +7
-		print('dims is ' + dims)
-		print(dims == '')
 
-		print(dims == None)
-		
 		#Maybe replace with itemData function
 		#thumb = self.model().data(self.currentIndex() , Qt.UserRole + 1)
 		#assetFiles = self.model().data(self.currentIndex() , Qt.UserRole + 2)
@@ -993,10 +989,10 @@ class MainWindow(QMainWindow):
 		self.statusbar.setFixedHeight(5)
 		#self.statusbar.adjustSize()
 
-		self.actionReBuildDB = QAction('Re-Build Database', MainWindow)
+		self.actionReBuildDB = QAction('Re-Build Database (rebuild everything)', MainWindow)
 		self.actionReBuildDB.setObjectName("actionReBuildDB")
 
-		self.actionReBuildDBAssets = QAction('Re-Build Assets Database', MainWindow)
+		self.actionReBuildDBAssets = QAction('Re-Build Assets DB (if you added new assets)', MainWindow)
 		self.actionReBuildDBAssets.setObjectName("actionReBuildDBAssets")
 
 		self.actionGenResImages = QAction('Generate Lower Resolution Files', MainWindow)
