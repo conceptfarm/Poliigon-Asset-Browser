@@ -1,7 +1,6 @@
 import os
 import errno
-import glob
-import ntpath
+from pathlib import PurePath, Path
 
 from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
@@ -33,7 +32,7 @@ class GenerateResolutions():
 		result=[]
 		
 		for ext in imageExt:
-			fileList = glob.glob(inDir + '/' + ext)
+			fileList = [str(item) for item in (Path(inDir).glob(ext))]
 			result = result + fileList
 
 		return result
@@ -51,17 +50,90 @@ class GenerateResolutions():
 				return path
 
 	#creates a dir with the resolution parameters at end
-	def createAssetDir(self, inPath, outSize):
-		return self.makeSurePathExists((inPath + '_' + outSize.upper()))
+	def createAssetDir(self, inPath, res, metalness):
+		baseDir = self.removeLeaf(inPath, 1)
+		if metalness:
+			res = res + "_METALNESS"
+		return self.makeSurePathExists( baseDir.joinpath(res.upper()) )
+
+	
+	#Removes n amount of leaves from a directory - returns processed directory
+	def removeLeaf(self, _dir, n):
+		result = PurePath('')
+		pathParts = PurePath(_dir).parts
+		for i in range(0,len(pathParts) - n ):
+			result = result.joinpath(pathParts[i])
+		return result
+
+	'''
+	baseDir can be old style like Bricks10_2k or Bricks10
+	or new style like Bricks10/2K or Bricks10/HIRES
+	We need to conform all the old style to new
+	'''
+	def conformPaths(self, baseDir):
+		pathParts = PurePath(baseDir).parts
+		dir0 = pathParts[-1]
+		dir1 = pathParts[-2]
+		
+		allFiles = self.getAllImageFiles(baseDir)
+
+		if len(allFiles) > 0:
+
+			#Asset name from filename, just use any first file found
+			assetName = (PurePath(allFiles[0]).stem).split('_')[0]
+			assetRes = (PurePath(allFiles[0]).stem).split('_')[-1]
+			assetMetalness = False
+			
+			if assetRes.lower() == 'metalness':
+				assetRes = (PurePath(allFiles[0]).stem).split('_')[-2] + '_METALNESS'
+				assetMetalness = True
+			
+
+			#if already conformed to new style do nothing
+			if (dir0.lower() == assetRes.lower()) and dir1.lower() == assetName.lower() :
+				return (PurePath(baseDir), assetMetalness)
+			else:
+				newPath = self.removeLeaf(baseDir, 1).joinpath(assetName).joinpath(assetRes.upper())
+				newPathObj = self.makeSurePathExists(newPath)
+				if newPathObj != False:
+					result = False
+					for f in allFiles:
+						fileNameExt = PurePath(f).suffix
+						#move files to a new location
+						Path(f).rename(newPath.joinpath(fileNameExt))
+						
+						if Path(newPath.joinpath(fileNameExt)).is_file():
+							result = (newPathObj, assetMetalness)
+						else:
+							result = (False, False)
+							break
+
+					try:
+						os.rmdir(baseDir)
+					except:
+						print('Couldn\'t delete dir')
+
+					return result
+				else:
+					return (False, False)
+		else:
+			return (False, False)
 
 	#takes a image object and resizes it based on resolution desired
-	def resizeFile(self, saveDir, inImageObject, outSize, overwrite=False):
+	def resizeFile(self, saveDir, inImageObject, outSize, assetMetalness, overwrite=False):
 		imgFormat = inImageObject.format
-		imgFileName = ntpath.basename(inImageObject.filename)
-		f,imageExt = os.path.splitext(inImageObject.filename)
-		
-		#get the last instance of _ and remove everything after that
-		imgFileNameBase = imgFileName[:imgFileName.rfind('_')]
+		imgFileName = PurePath(inImageObject.filename).stem
+		imageExt = PurePath(inImageObject.filename).suffix
+		metalness = ''
+		imgFileNameBase = ''
+
+		if assetMetalness == False:
+			#get the last instance of _ and remove everything after that
+			imgFileNameBase = (imgFileName.rsplit('_', maxsplit = 1))[0]
+		else:
+			#metalness we need to remove the resolution and the metalness part
+			metalness = '_METALNESS'
+			imgFileNameBase = (imgFileName.rsplit('_', maxsplit = 2))[0]
 
 		maxDim = 6114
 
@@ -74,7 +146,7 @@ class GenerateResolutions():
 		elif outSize.lower() == '2k':
 			maxDim = 2048
 
-		outImageFilePath = str(saveDir + '/' + imgFileNameBase + '_' + outSize + imageExt)
+		outImageFilePath = str(str(saveDir) + '/' + imgFileNameBase + '_' + outSize + metalness + imageExt)
 		
 		if (os.path.isfile(outImageFilePath) == False or overwrite == True):
 			if inImageObject.width >= inImageObject.height:
@@ -96,21 +168,23 @@ class GenerateResolutions():
 
 	#gets all images paths and itterates an image object resize
 	def doFileResize(self, baseDir, baseRes, resolutionsList, overwrite=False):
-		allFiles = self.getAllImageFiles(baseDir)
 		
-		#base dir is now dir without _resolution part of the path if not hires, 
-		#hires paths have no _resolution at end
-		if baseRes.lower() != 'hires':
-			baseDir = baseDir[:-3]
-		
-		for file in allFiles:
-			print(file)
-			fileObject = Image.open(file)
-			for res in resolutionsList:
-				newDir = self.createAssetDir(baseDir, res)
-				if newDir:
-					newFile = self.resizeFile(newDir, fileObject, res, overwrite)
-			fileObject.close()
+		#conform assets to the new style directory structure
+		baseDir, assetMetalness = self.conformPaths(baseDir)
+		if baseDir != False:
+			#baseDir = confromResult[0]
+			#assetMetalness = confromResult[1]
+
+			allFiles = self.getAllImageFiles(baseDir)
+					
+			for file in allFiles:
+				print(file)
+				fileObject = Image.open(file)
+				for res in resolutionsList:
+					newDir = self.createAssetDir(baseDir, res, assetMetalness)
+					if newDir:
+						newFile = self.resizeFile(newDir, fileObject, res, assetMetalness, overwrite)
+				fileObject.close()
 
 
 	def main(self, **kwargs):
@@ -124,6 +198,11 @@ class GenerateResolutions():
 			if (len(self.findInList('hires',dbEntry['assetsRes'])) > 0):
 				resolutions = ['6K','4K','3K','2K']
 				_index = (self.findInList('hires',dbEntry['assetsRes']))[0]
+				self.doFileResize(dbEntry['assets'][_index], dbEntry['assetsRes'][_index], resolutions, self.overwrite)
+
+			elif (len(self.findInList('8k',dbEntry['assetsRes'])) > 0):
+				resolutions = ['6K','4K','3K','2K']
+				_index = (self.findInList('8k',dbEntry['assetsRes']))[0]
 				self.doFileResize(dbEntry['assets'][_index], dbEntry['assetsRes'][_index], resolutions, self.overwrite)
 			
 			elif (len(self.findInList('6k',dbEntry['assetsRes'])) > 0):

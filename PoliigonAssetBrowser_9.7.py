@@ -109,7 +109,7 @@ def createMSFile(basepath, fileResList, file2DList, dimensions, materialName):
 		return result
 	
 	def make(fileList, fileRes):
-		selectors = ['assetRes','_AO_' , '_COL_' , '_DISP_' , '_DISP16_' , '_GLOSS_' , '_NRM_' , '_NRM16_' , '_REFL_' , '_SSS_' , '_TRANSMISSION_' , '_DIRECTION_' ,'_ALPHAMASKED_']
+		selectors = ['assetRes','_AO_' , '_COL_' , '_DISP_' , '_DISP16_' , '_GLOSS_' , '_NRM_' , '_NRM16_' , '_REFL_' , '_SSS_' , '_TRANSMISSION_' , '_DIRECTION_' ,'_ALPHAMASKED_' , '_ROUGHNESS_', '_METALNESS_']
 		und = 'undefined'
 		new_array = {f:und for f in selectors}
 		
@@ -292,7 +292,6 @@ class Worker(QRunnable):
 			self.signals.result.emit(result)  # Return the result of the processing
 		finally:
 			self.signals.finished.emit()  # Done
-	
 
 class IconListItem(QStandardItem):
 
@@ -311,7 +310,6 @@ class IconListItem(QStandardItem):
 		placeholder = QPixmap(self._iconSize)
 		placeholder.fill(Qt.gray)
 		self.setIcon(QIcon(placeholder))
-
 
 class LargePreviewWindow(QDialog):
 	def __init__(self, parent=None):
@@ -1387,11 +1385,15 @@ class MainWindow(QMainWindow):
 	# and resolutions grouped by asset name
 	def collectPurchasedFiles(self, **kwargs):
 		
-		def resFromDirPath(_dir):
+		def resFromFilePath(_file):
 			res = ''
-			assetRes = PurePath(_dir).stem.split('_')
-			if len(assetRes) > 1:
-				res = assetRes[-1]
+			fileParts = PurePath(_file).stem.split('_')
+			
+			if len(fileParts) > 1:
+				if fileParts[-1].lower() == 'metalness':
+					res = fileParts[-2]
+				else:
+					res = fileParts[-1]
 			else:
 				res = 'HIRES'
 
@@ -1426,7 +1428,7 @@ class MainWindow(QMainWindow):
 				elif PurePath(fname).suffix != '.db':
 					searchName = fname.split('_')[0]
 					assets = thisDir
-					assetsRes = resFromDirPath(thisDir)	
+					assetsRes = resFromFilePath(fname)	
 					
 					if masterList.get(searchName) == None:
 						masterList.update({searchName:{'assets':[assets], 'assetsRes':[assetsRes]}})
