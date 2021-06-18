@@ -13,7 +13,9 @@ struct poliigonMapSet
 	_SSS_ = undefined,
 	_TRANSMISSION_ = undefined,
 	_DIRECTION_ = undefined,
-	_ALPHAMASKED_ = undefined
+	_ROUGHNESS_ = undefined,
+	_METALNESS_ = undefined
+
 )
 
 --set of set of maps for material
@@ -23,6 +25,7 @@ struct poliigonMaterialSet
 	_3K_ = undefined,
 	_4K_ = undefined,
 	_6K_ = undefined,
+	_8K_ = undefined,
 	_HIRES_  = undefined,
 	
 	fn getMapsForRes res =
@@ -33,13 +36,14 @@ struct poliigonMaterialSet
 			"3K":_3K_
 			"4K":_4K_
 			"6K":_6K_
+			"8K":_8K_
 			"HIRES":_HIRES_
 		)
 	),
 	
 	fn listAvailableRes =
 	(
-		result = for i in #(_2K_,_3K_ ,_4K_ ,_6K_,_HIRES_) where i != undefined collect i.assetRes
+		result = for i in #(_2K_,_3K_ ,_4K_ ,_6K_,_8K_,_HIRES_) where i != undefined collect i.assetRes
 		result
 	)
 )
@@ -47,12 +51,13 @@ struct poliigonMaterialSet
 --the whole material set of all maps and all resolutions
 struct pyPoliigonStruct 
 (
-	--selectors = #('_AO_' , '_COL_' , '_DISP_' , '_DISP16_' , '_GLOSS_' , '_NRM_' , '_REFL_' , '_SSS_' , '_TRANSMISSION_' , '_DIRECTION_' ,'_ALPHAMASKED_')
+	--selectors = #('_AO_' , '_COL_' , '_DISP_' , '_DISP16_' , '_GLOSS_' , '_NRM_' , '_REFL_' , '_SSS_' , '_TRANSMISSION_' , '_DIRECTION_' ,'_ALPHAMASKED_' , '_ROUGHNESS_' , '_METALNESS_')
 	
 	_2K_ = undefined,
 	_3K_ = undefined,
 	_4K_ = undefined,
 	_6K_ = undefined,
+	_8K_ = undefined,
 	_HIRES_  = undefined,
 	availableRes = #(),
 	
@@ -73,6 +78,8 @@ struct pyPoliigonStruct
 	_TRANSMISSION_ = undefined,
 	_DIRECTION_ = undefined,
 	_ALPHAMASKED_ = undefined,
+	_ROUGHNESS_ = undefined,
+	_METALNESS_ = undefined,
 	
 	 
 	useAO_var = true,
@@ -80,6 +87,7 @@ struct pyPoliigonStruct
 	use16bit_var = true,
 	useSphere_var = true,
 	useGamma_var = true,
+	useVrayBitmap_var = false,
 	materialsToCreate = 0,
 	materialsCreated = 0,
 	spheresInScene = 0,
@@ -93,13 +101,14 @@ struct pyPoliigonStruct
 			"3K":_3K_
 			"4K":_4K_
 			"6K":_6K_
+			"8K":_6K_
 			"HIRES":_HIRES_
 		)
 	),
 	
 	fn listAvailableRes =
 	(
-		result = for i in #(_2K_,_3K_ ,_4K_ ,_6K_,_HIRES_) where i != undefined collect i.assetRes
+		result = for i in #(_2K_,_3K_ ,_4K_ ,_6K_,_8K_,_HIRES_) where i != undefined collect i.assetRes
 		result
 	),
 	
@@ -112,7 +121,21 @@ struct pyPoliigonStruct
 			progressBar CTRL_progressBar "Progress Bar" value:0 pos:[25,30] width:200 height:30 color:(color 95 138 193)
 		)
 	),
-	
+
+	fn isClass _class =
+	(
+		local result = false
+		try
+		(
+			local temp = execute (_class + "()")
+			result = true
+		)
+		catch
+		(
+			result = false
+		)
+		result
+	),
 
 	fn convertDims dims = 
 	(
@@ -130,36 +153,90 @@ struct pyPoliigonStruct
 		pBar.value = (materialsCreated/materialsToCreate)*100 
 	),
 	
-	fn buildMap bmFile bmType = 
+	fn buildMap bmFile bmType useVrayBitmap = 
 	(
 		--start = timeStamp()
-		bm = Bitmaptexture fileName: bmFile
+		local bm = undefined
 		bm.name = bmType
-		bm.alphaSource = 2
 		
-		--data map channel must have map gamma set to 1.0
-		if (bmType != "_AO_" and bmType != "_COL_" and bmType != "_SSS_") and (useGamma_var) then
+		if useVrayBitmap then 
 		(
-			gammaBitmap = openBitmap bmFile gamma:1.0
-			bm.bitmap = gammaBitmap
-		)
-
-
-		if pyDimensions != undefined then
-		(
-			bm.coords.realWorldScale = true
-			bm.coords.realWorldWidth = pyDimensions[1]
-			bm.coords.realWorldHeight = (bm.bitmap.height * bm.coords.realWorldWidth)/bm.bitmap.width
+			bm = VrayBitmap()
+			bm.HDRIMapName = bmFile
+			bm.alphaSource = 2
 		)
 		else
 		(
-			bm.coords.realWorldScale = false
-			bm.coords.U_Tiling = 1
-			bm.coords.V_Tiling = (bm.bitmap.height * bm.coords.U_Tiling)/bm.bitmap.width
+			bm = Bitmaptexture fileName: bmFile
+			bm.alphaSource = 2
 		)
 		
+		
+		--data map channel must have map gamma set to 1.0
+		if (bmType != "_AO_" and bmType != "_COL_" and bmType != "_REFL_" and bmType != "_SSS_" and bmType != "_TRANSMISSION_") and (useGamma_var) then
+		(
+			if useVrayBitmap then 
+			(
+				bm.color_space = 0 		--color space transform is none
+				bm.rgbColorSpace = 3 	-- rgb primaries Raw
+			)
+			else
+			(
+				gammaBitmap = openBitmap bmFile gamma:1.0
+				bm.bitmap = gammaBitmap
+			)
+		)
+		else
+		(
+			if useVrayBitmap then 
+			(
+				bm.color_space = 2 		--color space transform is sRGB
+				bm.rgbColorSpace = 1 	-- rgb primaries sRGB
+			)
+		)
+
+		--dimensions
+		if pyDimensions != undefined then
+		(			
+			if useVrayBitmap then 
+			(
+				bm.UVGen.realWorldScale = true
+				bm.UVGen.realWorldWidth = pyDimensions[1]
+				bmInfo = getBitmapInfo bm.HDRIMapName
+				bm_width  = bmInfo[3]
+				bm_height = bmInfo[4]
+				bm.UVGen.realWorldHeight = (bm_height * bm.UVGen.realWorldWidth)/bm_width
+			)
+			else
+			(
+				bm.coords.realWorldScale = true
+				bm.coords.realWorldWidth = pyDimensions[1]
+				bm.coords.realWorldHeight = (bm.bitmap.height * bm.coords.realWorldWidth)/bm.bitmap.width
+			)
+		)
+		else
+		(
+			if useVrayBitmap then 
+			(
+				bm.UVGen.realWorldScale = false
+				bm.UVGen.U_Tiling = 1
+				bmInfo = getBitmapInfo bm.HDRIMapName
+				bm_width  = bmInfo[3]
+				bm_height = bmInfo[4]
+				bm.UVGen.V_Tiling = (bm_height * bm.UVGen.U_Tiling)/bm_width
+			)
+			else
+			(
+				bm.coords.realWorldScale = false
+				bm.coords.U_Tiling = 1
+				bm.coords.V_Tiling = (bm.bitmap.height * bm.coords.U_Tiling)/bm.bitmap.width
+			)
+		)
+		
+		--Alphamasked alpha settings
 		if bmType == "_ALPHAMASKED_" then
 		(
+			--same variables name for both Bitmaptexture and VrayBitmap
 			bm.monoOutput = 1
 			bm.rgbOutput = 1
 			bm.alphaSource = 2
@@ -173,6 +250,7 @@ struct pyPoliigonStruct
 		)
 		--end = timeStamp()
 		--print ("buildMap took "+ ((end - start) / 1000.0) as string +" seconds" ) as string
+		
 		updateProgressBar ProgressBarRO.CTRL_progressBar
 		bm
 	),
@@ -181,20 +259,20 @@ struct pyPoliigonStruct
 	(
 		pyDimensions = if dims != undefined then convertDims dims --translate to Point2
 		
-		_AO_ = if mapSetClass._AO_ != undefined then (buildMap mapSetClass._AO_ "_AO_")
-		_COL_ = if mapSetClass._COL_ != undefined then (for f in mapSetClass._COL_ collect (buildMap f "_COL_"))  else (#())
-		_DISP_ = if mapSetClass._DISP_ != undefined then (for f in mapSetClass._DISP_ collect (buildMap f "_DISP_"))  else (#())
-		_DISP16_ = if mapSetClass._DISP16_ != undefined then buildMap mapSetClass._DISP16_ "_DISP16_"
-		_GLOSS_ = if mapSetClass._GLOSS_ != undefined then buildMap mapSetClass._GLOSS_  "_GLOSS_"
-		_NRM_ = if mapSetClass._NRM_ != undefined then buildMap mapSetClass._NRM_ "_NRM_"
-		_NRM16_ = if mapSetClass._NRM16_ != undefined then buildMap mapSetClass._NRM16_ "_NRM_"
-		_REFL_ = if mapSetClass._REFL_  != undefined then buildMap  mapSetClass._REFL_ "_REFL_"
-		_SSS_ = if mapSetClass._SSS_ != undefined then buildMap mapSetClass._SSS_ "_SSS_"
-		_TRANSMISSION_ = if mapSetClass._TRANSMISSION_ != undefined then buildMap mapSetClass._TRANSMISSION_ "_TRANSMISSION_"
-		_DIRECTION_ = if mapSetClass._DIRECTION_  != undefined then buildMap mapSetClass._DIRECTION_ "_DIRECTION_"
-		_ALPHAMASKED_ = if mapSetClass._ALPHAMASKED_ != undefined then (for f in mapSetClass._ALPHAMASKED_  collect (buildMap f "_ALPHAMASKED_")) else (#())
-
-		
+		_AO_ = if mapSetClass._AO_ != undefined then (buildMap mapSetClass._AO_ "_AO_" useVrayBitmap_var)
+		_COL_ = if mapSetClass._COL_ != undefined then (for f in mapSetClass._COL_ collect (buildMap f "_COL_" useVrayBitmap_var))  else (#())
+		_DISP_ = if mapSetClass._DISP_ != undefined then (for f in mapSetClass._DISP_ collect (buildMap f "_DISP_" useVrayBitmap_var))  else (#())
+		_DISP16_ = if mapSetClass._DISP16_ != undefined then buildMap mapSetClass._DISP16_ "_DISP16_" useVrayBitmap_var
+		_GLOSS_ = if mapSetClass._GLOSS_ != undefined then buildMap mapSetClass._GLOSS_  "_GLOSS_" useVrayBitmap_var
+		_NRM_ = if mapSetClass._NRM_ != undefined then buildMap mapSetClass._NRM_ "_NRM_" useVrayBitmap_var
+		_NRM16_ = if mapSetClass._NRM16_ != undefined then buildMap mapSetClass._NRM16_ "_NRM_" useVrayBitmap_var
+		_REFL_ = if mapSetClass._REFL_  != undefined then buildMap  mapSetClass._REFL_ "_REFL_" useVrayBitmap_var
+		_SSS_ = if mapSetClass._SSS_ != undefined then buildMap mapSetClass._SSS_ "_SSS_" useVrayBitmap_var
+		_TRANSMISSION_ = if mapSetClass._TRANSMISSION_ != undefined then buildMap mapSetClass._TRANSMISSION_ "_TRANSMISSION_" useVrayBitmap_var
+		_DIRECTION_ = if mapSetClass._DIRECTION_  != undefined then buildMap mapSetClass._DIRECTION_ "_DIRECTION_" useVrayBitmap_var
+		_ALPHAMASKED_ = if mapSetClass._ALPHAMASKED_ != undefined then (for f in mapSetClass._ALPHAMASKED_  collect (buildMap f "_ALPHAMASKED_" useVrayBitmap_var)) else (#())
+		_ROUGHNESS_ = if mapSetClass._ROUGHNESS_  != undefined then buildMap mapSetClass._ROUGHNESS_ "_ROUGHNESS_" useVrayBitmap_var
+		_METALNESS_ = if mapSetClass._METALNESS_  != undefined then buildMap mapSetClass._METALNESS_ "_METALNESS_" useVrayBitmap_var
 	),
 
 	fn buildMaterial variation = 
@@ -393,6 +471,23 @@ struct pyPoliigonStruct
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
 
+		--METALNESS--
+		if _METALNESS_ != undefined then
+		(
+			mat.texmap_metalness = _METALNESS_
+		)
+		updateProgressBar ProgressBarRO.CTRL_progressBar
+		
+		
+		--ROUGHNESS--
+		if _ROUGHNESS_ != undefined then
+		(
+			mat.texmap_roughness = _ROUGHNESS_
+			mat.brdf_useRoughness = true
+			--mat.option_diffuse_roughness_model : integer
+		)
+		updateProgressBar ProgressBarRO.CTRL_progressBar
+
 		mat
 	),
 
@@ -403,11 +498,12 @@ struct pyPoliigonStruct
 		try(destroydialog ProgressBarRO )catch()
 		createDialog ProgressBarRO --modal:true
 		
-		materialsToCreate = 12 -- 12 initial bitmaps to initialize
+		materialsToCreate = 14 -- 14, number of public members of poliigonMapSet
+		if isClass "VrayBitmap" then useVrayBitmap_var = true
 		parsePyMaterialArray (getMapsForRes chosenRes) pyDimensions
 
 
-		materialsToCreate =  _COL_.count * 9
+		materialsToCreate =  _COL_.count * 11 -- 11, number of unique maps AO, COL, NRM 8/16, ...
 
 		for i = 1 to _COL_.count do
 		(
@@ -470,7 +566,6 @@ struct pyPoliigonStruct
 		try(destroydialog pyPoliigonStructRO )catch()
 		createDialog pyPoliigonStructRO modal:true
 	)
-
 )
 
 pyPoliigonMaterial = pyPoliigonStruct()
