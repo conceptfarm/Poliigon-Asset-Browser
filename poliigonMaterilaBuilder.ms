@@ -459,9 +459,11 @@ struct pyPoliigonStruct
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
 		
-		/*NOTE ON METALNESS/ROUGHNESS MODEL
-		Vray doesn't seem to work as intended with metalness roughness
+		/*
+		NOTE ON METALNESS/ROUGHNESS MODEL
+		Vray doesn't seem to work as intended with metalness/roughness textures
 		*/
+		
 		--METALNESS--
 		if _METALNESS_ != undefined then
 		(
