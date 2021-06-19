@@ -13,6 +13,7 @@ struct poliigonMapSet
 	_SSS_ = undefined,
 	_TRANSMISSION_ = undefined,
 	_DIRECTION_ = undefined,
+	_ALPHAMASKED_ = undefined,
 	_ROUGHNESS_ = undefined,
 	_METALNESS_ = undefined
 
@@ -101,7 +102,7 @@ struct pyPoliigonStruct
 			"3K":_3K_
 			"4K":_4K_
 			"6K":_6K_
-			"8K":_6K_
+			"8K":_8K_
 			"HIRES":_HIRES_
 		)
 	),
@@ -115,7 +116,7 @@ struct pyPoliigonStruct
 	ProgressBarRO =
 	(
 		-- Progress Bar
-		rollout ProgressBarRO "Loading..." width:250 height:70 --ProgressBarRollout
+		rollout ProgressBarRO "Loading..." width:250 height:70
 		(
 			label label_loading "Loading: " pos:[25,10] align:#left
 			progressBar CTRL_progressBar "Progress Bar" value:0 pos:[25,30] width:200 height:30 color:(color 95 138 193)
@@ -157,8 +158,7 @@ struct pyPoliigonStruct
 	(
 		--start = timeStamp()
 		local bm = undefined
-		bm.name = bmType
-		
+				
 		if useVrayBitmap then 
 		(
 			bm = VrayBitmap()
@@ -171,9 +171,10 @@ struct pyPoliigonStruct
 			bm.alphaSource = 2
 		)
 		
+		bm.name = bmType
 		
 		--data map channel must have map gamma set to 1.0
-		if (bmType != "_AO_" and bmType != "_COL_" and bmType != "_REFL_" and bmType != "_SSS_" and bmType != "_TRANSMISSION_") and (useGamma_var) then
+		if (bmType != "_AO_" and bmType != "_COL_" and bmType != "_REFL_" and bmType != "_SSS_" and bmType != "_TRANSMISSION_" and bmType != "_METALNESS_") and (useGamma_var) then
 		(
 			if useVrayBitmap then 
 			(
@@ -186,6 +187,7 @@ struct pyPoliigonStruct
 				bm.bitmap = gammaBitmap
 			)
 		)
+		--color map channel must have map gamma set to 2.2
 		else
 		(
 			if useVrayBitmap then 
@@ -330,6 +332,7 @@ struct pyPoliigonStruct
 		if _GLOSS_ != undefined then
 		(
 			mat.texmap_reflectionGlossiness = _GLOSS_
+			mat.brdf_useRoughness = false
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
 
@@ -455,7 +458,32 @@ struct pyPoliigonStruct
 			)
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
-
+		
+		/*NOTE ON METALNESS/ROUGHNESS MODEL
+		Vray doesn't seem to work as intended with metalness roughness
+		*/
+		--METALNESS--
+		if _METALNESS_ != undefined then
+		(
+			mat.texmap_reflection = _METALNESS_
+			--Should be this
+			--mat.texmap_metalness = _METALNESS_
+			--mat.reflection_metalness : float
+		)
+		updateProgressBar ProgressBarRO.CTRL_progressBar
+		
+		
+		--ROUGHNESS--
+		if _ROUGHNESS_ != undefined then
+		(
+			mat.texmap_reflectionGlossiness = _ROUGHNESS_
+			mat.brdf_useRoughness = true
+			--mat.diffuse_roughness : float
+			--mat.option_diffuse_roughness_model : integer
+		)
+		updateProgressBar ProgressBarRO.CTRL_progressBar
+		
+		
 		--SSS--
 		if _SSS_ != undefined then
 		(
@@ -468,23 +496,6 @@ struct pyPoliigonStruct
 			mat.texmap_translucency_on = true
 			mat.force1SidedSubMtls = true
 			mat.mult_by_front_diffuse = false
-		)
-		updateProgressBar ProgressBarRO.CTRL_progressBar
-
-		--METALNESS--
-		if _METALNESS_ != undefined then
-		(
-			mat.texmap_metalness = _METALNESS_
-		)
-		updateProgressBar ProgressBarRO.CTRL_progressBar
-		
-		
-		--ROUGHNESS--
-		if _ROUGHNESS_ != undefined then
-		(
-			mat.texmap_roughness = _ROUGHNESS_
-			mat.brdf_useRoughness = true
-			--mat.option_diffuse_roughness_model : integer
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
 
