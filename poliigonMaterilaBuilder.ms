@@ -462,8 +462,10 @@ struct pyPoliigonStruct
 		/*
 		NOTE ON METALNESS/ROUGHNESS MODEL
 		Vray doesn't seem to work as intended with metalness/roughness textures
+		This is a workaround to make the texture look like the official sample
 		*/
 		
+		/* OLD
 		--METALNESS--
 		if _METALNESS_ != undefined then
 		(
@@ -484,7 +486,28 @@ struct pyPoliigonStruct
 			--mat.option_diffuse_roughness_model : integer
 		)
 		updateProgressBar ProgressBarRO.CTRL_progressBar
+		*/
 		
+		--METALNESS--
+		if _METALNESS_ != undefined then
+		(
+			mat.texmap_metalness = _METALNESS_
+			mat.reflection_metalness = 1.0
+			mat.reflection = (color 255 255 255 )
+			mat.reflection_fresnel = true
+			mat.reflection_ior = 1.1 --most metals are between 1.002(Aluminium) and 1.35(Gold)
+			mat.brdf_type = 0 --setting BRDF to Phong seems to look the most like the sample
+		)
+		updateProgressBar ProgressBarRO.CTRL_progressBar
+		
+		
+		--ROUGHNESS--
+		if _ROUGHNESS_ != undefined then
+		(
+			mat.texmap_reflectionGlossiness = _ROUGHNESS_
+			mat.brdf_useRoughness = true
+		)
+		updateProgressBar ProgressBarRO.CTRL_progressBar
 		
 		--SSS--
 		if _SSS_ != undefined then
