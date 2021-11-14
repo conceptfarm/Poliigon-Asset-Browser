@@ -50,7 +50,7 @@ class GenerateSmallThumbs():
 			outImageObject.close()
 
 
-	#gets all images paths and itterates an image object resize
+	#gets all images paths and iterates an image object resize
 	def doFileResize(self, file, overwrite=False):
 		fileObject = Image.open(file)
 		newFile = self.resizeFile(fileObject, overwrite)
