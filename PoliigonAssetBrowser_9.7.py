@@ -95,8 +95,11 @@ def createMSFile(basepath, fileResList, file2DList, dimensions, materialName):
 		return ''.join(result)
 
 	def pyValueToMaxValue(maxArray):
+		print(maxArray)
 		if type(maxArray) == list and len(maxArray) > 0:
 			return pyListToMaxArray(maxArray)
+		if type(maxArray) == list and len(maxArray) == 0:
+			print("Error 0 array?")
 		elif maxArray == 'undefined':
 			return maxArray
 		else:
@@ -109,11 +112,17 @@ def createMSFile(basepath, fileResList, file2DList, dimensions, materialName):
 		return result
 	
 	def make(fileList, fileRes):
+		
+		print("in make")
+		print(fileList)
+		print(fileRes)
+		
 		selectors = ['assetRes','_AO_' , '_COL_' , '_DISP_' , '_DISP16_' , '_GLOSS_' , '_NRM_' , '_NRM16_' , '_REFL_' , '_SSS_' , '_TRANSMISSION_' , '_DIRECTION_' ,'_ALPHAMASKED_' , '_ROUGHNESS_', '_METALNESS_']
 		und = 'undefined'
 		new_array = {f:und for f in selectors}
 		
 		new_array['assetRes'] = fileRes
+		print(new_array)
 
 		if len(fileList) == 1:
 			#just one file, probably a graphic, set
@@ -136,24 +145,25 @@ def createMSFile(basepath, fileResList, file2DList, dimensions, materialName):
 						new_array[selectors[i]] = f
 			
 			new_array['_COL_'] = colorVariations
-			new_array['_DISP_'] = dispVariations
+			new_array['_DISP_'] = dispVariations if len(dispVariations) > 0 else und
 			new_array['_ALPHAMASKED_'] = alphaVariations
 
 			'''
 			1 - alphamask is present, no color present -> copy to color
 			2 - color is present in png format -> copy to alphamask
-
 			'''
-
 			if len(new_array['_COL_']) > 0 and len(new_array['_ALPHAMASKED_']) == 0:
 				if getExt(colorVariations[0]) == '.png':
 					new_array['_ALPHAMASKED_'] = new_array['_COL_']
 				else:
 					new_array['_ALPHAMASKED_'] = und
+			
 			elif len(new_array['_ALPHAMASKED_']) > 0 and len(new_array['_COL_']) == 0:
 				new_array['_COL_'] = new_array['_ALPHAMASKED_']
 
 		#weird name no selectors
+		#no _COL_ selector but there is a file
+		#if the file is png copy to alpha as well
 		if len(new_array['_COL_']) == 0 and len(fileList) != 0:
 			colorVariations = []
 			alphaVariations = []
@@ -165,7 +175,19 @@ def createMSFile(basepath, fileResList, file2DList, dimensions, materialName):
 
 			new_array['_COL_'] = colorVariations
 			new_array['_ALPHAMASKED_'] = alphaVariations
+		
+		#really weird material without colour component
+		new_array['_COL_'] = und if len(new_array['_COL_']) == 0 else new_array['_COL_']
+		new_array['_ALPHAMASKED_'] = und if len(new_array['_ALPHAMASKED_']) == 0 else new_array['_ALPHAMASKED_']
+
 		return pyDictToMaxString(new_array)
+
+	print("initialize createMS def")
+	print(basepath)
+	print(fileResList)
+	print(file2DList)
+	print(dimensions)
+	print(materialName)
 
 	tempMSFile = tempfile.NamedTemporaryFile(mode = 'w+', newline='\n',suffix='.ms',delete=False)
 	matStructVar = 'pyPoliigonMaterial=pyPoliigonStruct '
@@ -177,7 +199,7 @@ def createMSFile(basepath, fileResList, file2DList, dimensions, materialName):
 
 	
 	tempMSFile.write('matDimensions=' + ('undefined' if dimensions == None or dimensions == '' else str(dimensions)) + '\n')
-	tempMSFile.write(matStructVar + ' pyDimensions:matDimensions pyMaterialName:"'+materialName+'" pyScriptFilePath:getSourceFileName() \n')
+	tempMSFile.write(matStructVar + ' pyDimensions:matDimensions pyMaterialName:"' + materialName + '" pyScriptFilePath:getSourceFileName() \n')
 	tempMSFile.write('pyPoliigonMaterial.show()' + '\n')
 	tempMSFile.close()
 	
