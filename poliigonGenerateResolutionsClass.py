@@ -89,7 +89,7 @@ class GenerateResolutions():
 				assetMetalness = True
 			
 
-			#if already conformed to new style do nothing
+			#if already conformed to new style (asseName/RES/) do nothing
 			if (dir0.lower() == assetRes.lower()) and dir1.lower() == assetName.lower() :
 				return (PurePath(baseDir), assetMetalness)
 			else:
@@ -98,11 +98,11 @@ class GenerateResolutions():
 				if newPathObj != False:
 					result = False
 					for f in allFiles:
-						fileNameExt = PurePath(f).suffix
+						fileName = PurePath(f).name
 						#move files to a new location
-						Path(f).rename(newPath.joinpath(fileNameExt))
+						Path(f).rename(newPath.joinpath(fileName))
 						
-						if Path(newPath.joinpath(fileNameExt)).is_file():
+						if Path(newPath.joinpath(fileName)).is_file():
 							result = (newPathObj, assetMetalness)
 						else:
 							result = (False, False)
@@ -156,8 +156,8 @@ class GenerateResolutions():
 				height = maxDim
 				width = int(maxDim * inImageObject.width/inImageObject.height)
 
-
-			if inImageObject.mode == 'I;16':
+			print('image mode is ', inImageObject.mode)
+			if 'I;16' in inImageObject.mode:
 				print('16-bit')
 				outImageObject = inImageObject.resize((width, height),resample=Image.NEAREST)
 			else:
