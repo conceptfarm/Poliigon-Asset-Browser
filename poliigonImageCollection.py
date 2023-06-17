@@ -16,3 +16,9 @@ class imageCollectionBase64():
 		_image = QImage()
 		_image.loadFromData(QByteArray.fromBase64(base64))
 		return _image
+	
+	def qImageFromBase64String(self, _bytes):
+		base64 = bytes(_bytes,'utf-8')
+		_image = QImage()
+		_image.loadFromData(QByteArray.fromBase64(base64))
+		return _image
